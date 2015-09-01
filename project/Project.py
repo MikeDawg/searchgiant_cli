@@ -6,6 +6,9 @@ from config import ConfigLoader
 from oi.IO import IO
 import time
 import shutil
+from onlinestorage import OnlineStorage
+from googledrive import GoogleDrive
+
 
 class DefaultConfigs:
     defaults = {"google_drive":
@@ -21,6 +24,8 @@ class DefaultConfigs:
 
 
 class Project:
+    shutdown_signal = 0
+    pause_signal = 0
 
     working_dir = ""
     data_dir = ""
@@ -38,7 +43,7 @@ class Project:
     def __init__(self, args):
         # Meh...
         working_dir = args.project_dir[0]
-        project_name = args.service[0]
+        project_name = args.service
         threads = args.threads
         # /Meh...
 
@@ -68,7 +73,6 @@ class Project:
             os.makedirs(self.log_dir, exist_ok=True)
             IO.put("Logging directory not found, creating from scratch", "warn")
 
-
         if not os.path.isfile(self.config_file):
             IO.put("Config file not found, creating default config file", "warn")
             with open(self.config_file, 'w') as f:
@@ -96,6 +100,19 @@ class Project:
 
         self.transaction_logger.addHandler(tfh)
         self.exception_logger.addHandler(efh)
+
+    def start(self):
+        instance = OnlineStorage.OnlineStorage
+        print(self.args.mode)
+        print(self.args.service)
+        if self.args.service == "google_drive":
+            instance = GoogleDrive.GoogleDrive(self)
+
+        if self.args.mode == "full":
+            instance.full_sync()
+
+        if self.args.mode == "metadata":
+            instance.metadata()
 
     def log(self, type, message, level, stdout=False):
 

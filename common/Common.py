@@ -3,6 +3,7 @@ import urllib
 from urllib import parse
 import urllib.request
 from urllib import error
+import time
 
 def hashfile(file, hasher, blocksize=65536):
     buf = file.read(blocksize)
@@ -19,8 +20,13 @@ def safefilename(f):
         f = f[:50] + '_'
     return f
 
-def webrequest(url, headers, http_intercept, data=None, binary=False, return_req=False):
 
+def check_for_pause(project):
+    while project.pause_signal:
+        time.sleep(1)
+
+
+def webrequest(url, headers, http_intercept, data=None, binary=False, return_req=False):
     try:
         headers['user-agent'] = "searchgiant forensic cli"
         if not data:
@@ -62,4 +68,13 @@ def joinurl(b, p):
         return urllib.parse.urljoin(b, p)
 
 
-
+def dialog_result(response, default=True):
+    if not response:
+        return default
+    if not type(response) is str:
+        return default
+    response = response.lower()
+    if response[0] == "y":
+        return True
+    if response[0] == "n":
+        return False

@@ -22,14 +22,14 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
 
     input_callback = None
 
-
     def __init__(self, project):
+
         self.project = project
         self.files = []
         self.file_size_bytes = 0
         if "OAUTH" in self.project.config:
             self.oauth = self.project.config['OAUTH']
-        super(GoogleDrive, self).__init__(self.project.config['API_ENDPOINT'], self.input_callback, project.name)
+        super(GoogleDrive, self).__init__(self.project.config['API_ENDPOINT'], project.name)
 
     def _authorize(self):
         self.project.log("transaction", "Initiating OAUTH 2 Protocol with " + self.project.config['TOKEN_ENDPOINT'], "info", True)
@@ -78,7 +78,6 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         self.project.save("OAUTH", self.oauth)
         self.project.log("transaction", "Authorization complete", "info", True)
 
-
     def _refresh(self):
         input("REFRESH CALLED")
         query_string = ({'client_secret': self.project.config['CLIENT_SECRET'], 'grant_type': 'refresh_token',
@@ -91,6 +90,8 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         input("REFRESH RESPONSE IS " + str(response))
         self._parse_token(json_response)
 
+    def metadata(self):
+        pass
 
     def full_sync(self):
         self.project.log("transaction", "Full synchronization initiated", "info", True)
@@ -100,7 +101,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         self._get_items(Common.joinurl(self.project.config['API_ENDPOINT'], "files?maxResults=0"))
         cnt = len(self.files)
         self.project.log("transaction", "Total files queued for synchronization: " + str(cnt), "info", True)
-        d = Downloader.Downloader(self.project, self.http_intercept, self._save_file, self.get_auth_header(), self.project.threads)
+        d = Downloader.Downloader(self.project, self.http_intercept, self._save_file, self.get_auth_header, self.project.threads)
 
         for file in self.files:
             self.project.log("transaction", "Calculating " + file['title'], "info", True)
@@ -135,6 +136,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             time.sleep(1)
 
     def _save_file(self, data, slip):
+        Common.check_for_pause(self.project)
         savepath = slip.savepath
         file_item = slip.item
         path_to_create = os.path.dirname(savepath)
