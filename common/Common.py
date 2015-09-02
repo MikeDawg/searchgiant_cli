@@ -50,7 +50,6 @@ def webrequest(url, headers, http_intercept, data=None, binary=False, return_req
 
     except urllib.error.HTTPError as err:
         # TODO REMOVE
-        input("WEBREQUEST EXCEPTION ERR=" + str(err))
         new_headers = http_intercept(err)
         return webrequest(url, new_headers, http_intercept, data, binary, return_req)
 

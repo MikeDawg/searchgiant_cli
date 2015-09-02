@@ -79,7 +79,6 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         self.project.log("transaction", "Authorization complete", "info", True)
 
     def _refresh(self):
-        input("REFRESH CALLED")
         query_string = ({'client_secret': self.project.config['CLIENT_SECRET'], 'grant_type': 'refresh_token',
                          'refresh_token': self.oauth['refresh_token'], 'client_id': self.project.config['CLIENT_ID']})
         params = urllib.parse.urlencode(query_string)
@@ -87,7 +86,6 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                                      {'content-type': 'application/x-www-form-urlencoded;charset=utf-8'},
                                      self.http_intercept, params)
         json_response = json.loads(response)
-        input("REFRESH RESPONSE IS " + str(response))
         self._parse_token(json_response)
 
     def metadata(self):
@@ -210,8 +208,6 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             self.files.append(i)
 
     def _parse_token(self, response):
-        # TODO REMOVE
-        input("PARSETOKEN CALLED RESPONSE = " + str(response))
         self.oauth['access_token'] = response['access_token']
         self.oauth['expires_in'] = response['expires_in']
         expire_time = datetime.utcnow() + timedelta(0, int(self.oauth['expires_in']))

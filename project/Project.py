@@ -42,7 +42,7 @@ class Project:
 
     def __init__(self, args):
         # Meh...
-        working_dir = args.project_dir[0]
+        working_dir = args.project_dir
         project_name = args.service
         threads = args.threads
         # /Meh...
@@ -51,6 +51,7 @@ class Project:
         self.name = project_name
         self.threads = threads
         self.working_dir = os.path.join(working_dir, self.name)
+
         self.data_dir = os.path.join(self.working_dir, "data")
         self.log_dir = os.path.join(self.working_dir, "logs")
         self.config_file = os.path.join(self.working_dir, "config.cfg")
