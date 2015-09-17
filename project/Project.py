@@ -28,8 +28,6 @@ class Project:
     pause_signal = 0
 
     working_dir = ""
-    #data_dir = ""
-    #log_dir = ""
     transaction_log = ""
     exception_log = ""
     metadata_file= ""
@@ -64,6 +62,7 @@ class Project:
         self.project_folders["logs"] = os.path.join(self.working_dir, "logs")
         self.project_folders["metadata"] = os.path.join(self.working_dir, "metadata")
 
+
         self.config_file = os.path.join(self.working_dir, "config.cfg")
 
         for f in self.project_folders:
@@ -84,7 +83,6 @@ class Project:
 
         self.transaction_log = os.path.join(self.project_folders["logs"], "transaction.log")
         self.exception_log = os.path.join(self.project_folders["logs"], "exception.log")
-        # self.metadata_file = os.path.join(self.project_folders["metadata"], "metadata.csv")
 
         self.transaction_logger = logging.getLogger(project_name + "_t")
         self.exception_logger = logging.getLogger(project_name + "_e")
@@ -106,12 +104,8 @@ class Project:
         instance = OnlineStorage.OnlineStorage
         if self.args.service == "google_drive":
             instance = GoogleDrive.GoogleDrive(self)
+            instance.sync()
 
-        if self.args.mode == "full":
-            instance.full_sync()
-
-        if self.args.mode == "metadata":
-            instance.metadata()
 
     def log(self, type, message, level, stdout=False):
 
@@ -141,7 +135,11 @@ class Project:
                     f.write('{}={}\n'.format(k.upper(),v))
         self.config.from_file(self.config_file)
 
-    def savedata(self, data, filepath):
+    def savedata(self, data, filepath, stream=True):
+
         with open(filepath, 'wb') as f:
-            shutil.copyfileobj(data, f)
+            if stream:
+                shutil.copyfileobj(data, f)
+            else:
+                f.write(data.encode())
 

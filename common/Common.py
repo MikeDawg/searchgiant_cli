@@ -41,10 +41,13 @@ def safe_path(p):
     if sys.platform == "win32":
         p = path_normalization(p)
         if len(p) > 255:
-
             return None
     return p
 
+
+def hashstring(str, hasher):
+    hasher.update(str)
+    return hasher.hexdigest()
 
 def hashfile(file, hasher, blocksize=65536):
     buf = file.read(blocksize)
@@ -78,7 +81,7 @@ def path_normalization(p):
     p = path_strip(p)
     if path_strip(p) != p:
         return path_normalization(p)
-    return p
+    return p.strip()
 
 
 def webrequest(url, headers, http_intercept, data=None, binary=False, return_req=False):
