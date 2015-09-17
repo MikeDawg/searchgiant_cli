@@ -4,6 +4,47 @@ from urllib import parse
 import urllib.request
 from urllib import error
 import time
+import os
+import sys
+
+
+def safe_file_name(f):
+    ret = f
+    if ret == '..':
+        ret = '__'
+
+    posix = ['/', '\x00', '"']
+    osx = ['/', '\x00', ':', '"']
+    windows = ['*', '|', '\\', '/', ':', '<', '>', '?', '"']
+    blacklist = []
+    if sys.platform == "win32":
+        blacklist = windows
+    if sys.platform == "darwin":
+        blacklist = osx
+    if sys.platform == "linux2":
+        blacklist = posix
+
+    for c in blacklist:
+        ret = ret.replace(c, '_')
+
+    while ret.endswith("."):
+        ret = ret[:-1]
+
+    if len(ret) > 255:
+        ext = ret[-4:]
+        ret = ret[:246] + ext
+
+    return ret
+
+
+def safe_path(p):
+    if sys.platform == "win32":
+        p = path_normalization(p)
+        if len(p) > 255:
+
+            return None
+    return p
+
 
 def hashfile(file, hasher, blocksize=65536):
     buf = file.read(blocksize)
@@ -12,18 +53,32 @@ def hashfile(file, hasher, blocksize=65536):
         buf = file.read(blocksize)
     return hasher.hexdigest()
 
+
 def safefilename(f):
     f = f.replace('\\', '_')
     f = f.replace('/', '_')
-    f = f.replace('..','_')
-    if len(f) > 100:
-        f = f[:50] + '_'
+    f = f.replace('..', '_')
+    if len(f) > 260:
+        f = f[:240] + '_'
     return f
 
 
 def check_for_pause(project):
     while project.pause_signal:
         time.sleep(1)
+
+
+def path_strip(p):
+    p = p.replace(" " + os.sep, os.sep)
+    p = p.replace(os.sep + " ", os.sep)
+    return p
+
+
+def path_normalization(p):
+    p = path_strip(p)
+    if path_strip(p) != p:
+        return path_normalization(p)
+    return p
 
 
 def webrequest(url, headers, http_intercept, data=None, binary=False, return_req=False):

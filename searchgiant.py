@@ -36,6 +36,8 @@ except KeyboardInterrupt:
         P.pause_signal = 0
         P.shutdown_signal = 1
     while threading.active_count() > 1:
+        for t in threading.enumerate():
+            IO.IO.put("Active: {}".format(t.name))
         IO.IO.put("Waiting for all threads to shutdown gracefully...({} remaining)".format(threading.active_count()), "warning")
         time.sleep(3)
 

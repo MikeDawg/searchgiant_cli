@@ -28,8 +28,8 @@ class Project:
     pause_signal = 0
 
     working_dir = ""
-    data_dir = ""
-    log_dir = ""
+    #data_dir = ""
+    #log_dir = ""
     transaction_log = ""
     exception_log = ""
     metadata_file= ""
@@ -38,7 +38,9 @@ class Project:
     exception_logger = None
     name = ""
     threads = 5
-    args = None
+    args = ""
+
+    project_folders = {}
 
     def __init__(self, args):
         # Meh...
@@ -52,27 +54,25 @@ class Project:
         self.threads = threads
         self.working_dir = os.path.join(working_dir, self.name)
 
-        self.data_dir = os.path.join(self.working_dir, "data")
-        self.log_dir = os.path.join(self.working_dir, "logs")
-        self.config_file = os.path.join(self.working_dir, "config.cfg")
         if os.path.exists(self.working_dir):
             IO.put("Resuming project in " + self.working_dir, "highlight")
         else:
+            os.makedirs(self.working_dir, exist_ok=True)
             IO.put("Initializing project in " + self.working_dir, "highlight")
 
-        IO.put("Data path is " + self.data_dir)
-        IO.put("Log path is " + self.log_dir)
-        IO.put("Config file is " + self.config_file)
+        self.project_folders["data"] = os.path.join(self.working_dir, "data")
+        self.project_folders["logs"] = os.path.join(self.working_dir, "logs")
+        self.project_folders["metadata"] = os.path.join(self.working_dir, "metadata")
 
-        if not os.path.exists(self.working_dir):
-            os.makedirs(self.working_dir, exist_ok=True)
-            IO.put("Working directory not found, creating from scratch", "warn")
-        if not os.path.exists(self.data_dir):
-            os.makedirs(self.data_dir, exist_ok=True)
-            IO.put("Data directory not found, creating from scratch", "warn")
-        if not os.path.exists(self.log_dir):
-            os.makedirs(self.log_dir, exist_ok=True)
-            IO.put("Logging directory not found, creating from scratch", "warn")
+        self.config_file = os.path.join(self.working_dir, "config.cfg")
+
+        for f in self.project_folders:
+            IO.put("{} path is {}".format(f, self.project_folders[f]))
+            if not os.path.exists(self.project_folders[f]):
+                IO.put("{} directory not found, creating from scratch.", "warn")
+                os.makedirs(self.project_folders[f], exist_ok=True)
+
+        IO.put("Config file is " + self.config_file)
 
         if not os.path.isfile(self.config_file):
             IO.put("Config file not found, creating default config file", "warn")
@@ -82,9 +82,9 @@ class Project:
         self.config = ConfigLoader.ConfigLoader()
         self.config.from_file(self.config_file)
 
-        self.transaction_log = os.path.join(self.log_dir, "transaction.log")
-        self.exception_log = os.path.join(self.log_dir, "exception.log")
-        self.metadata_file = os.path.join(self.working_dir, "metadata.csv")
+        self.transaction_log = os.path.join(self.project_folders["logs"], "transaction.log")
+        self.exception_log = os.path.join(self.project_folders["logs"], "exception.log")
+        # self.metadata_file = os.path.join(self.project_folders["metadata"], "metadata.csv")
 
         self.transaction_logger = logging.getLogger(project_name + "_t")
         self.exception_logger = logging.getLogger(project_name + "_e")
@@ -104,8 +104,6 @@ class Project:
 
     def start(self):
         instance = OnlineStorage.OnlineStorage
-        print(self.args.mode)
-        print(self.args.service)
         if self.args.service == "google_drive":
             instance = GoogleDrive.GoogleDrive(self)
 

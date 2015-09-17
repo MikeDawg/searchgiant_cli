@@ -35,10 +35,12 @@ class Downloader(Queue):
 
     def _downloader(self):
         while (not self.empty()) and (not self.project.shutdown_signal):
+            t = threading.current_thread()
             Common.check_for_pause(self.project)
             slip = self.get()
             file_url = slip.url
-            self.project.log("transaction", "Downloading " + file_url, "info", True)
+            t.name = slip.item['title']
+            self.project.log("transaction", "Downloading " + slip.item['title'], "info", True)
             data = Common.webrequest(file_url, self.headers(), self.http_callback, None, False, True) # Response object gets passed to shutil.copyfileobj
             self.storage_callback(data, slip)
         if self.project.shutdown_signal:
