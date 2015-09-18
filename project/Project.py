@@ -8,6 +8,9 @@ import time
 import shutil
 from onlinestorage import OnlineStorage
 from googledrive import GoogleDrive
+import http.client
+
+
 
 
 class DefaultConfigs:
@@ -16,12 +19,20 @@ class DefaultConfigs:
                      "OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive'\r\n"
                      "OAUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/auth'\r\n"
                      "API_VERSION = 'v2'\r\n"
-                     "API_ENDPOINT = 'https://www.googleapis.com/drive/v2'\r\n"
+                     "API_ENDPOINT = ''\r\n"
                      "REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'\r\n"
                      "CLIENT_ID = ''\r\n"
-                     "CLIENT_SECRET = ''\r\n")
-                }
+                     "CLIENT_SECRET = ''\r\n"),
 
+                 "dropbox":
+                     ("TOKEN_ENDPOINT = 'https://api.dropboxapi.com/1/oauth2/token'\r\n"
+                      "OAUTH_ENDPOINT = 'https://www.dropbox.com/1/oauth2/authorize'\r\n"
+                      "CLIENT_ID = ''\r\n"
+                      "CLIENT_SECRET = ''\r\n"
+                      "API_ENDPOINT = 'https://api.dropboxapi.com/1'\r\n"
+                      "CONTENT_ENDPOINT = 'https://content.dropboxapi.com/1'\r\n")
+
+               }
 
 class Project:
     shutdown_signal = 0
@@ -136,10 +147,15 @@ class Project:
         self.config.from_file(self.config_file)
 
     def savedata(self, data, filepath, stream=True):
+        try:
+            with open(filepath, 'wb') as f:
+                if stream:
+                    shutil.copyfileobj(data, f)
+                else:
+                    f.write(data.encode())
 
-        with open(filepath, 'wb') as f:
-            if stream:
-                shutil.copyfileobj(data, f)
-            else:
-                f.write(data.encode())
+        except http.client.IncompleteRead:
+            # TODO: Check yourself before you wreck yourself
+            print("OMG INCOMPLETE READ, WHAT DO?!")
+            input()
 

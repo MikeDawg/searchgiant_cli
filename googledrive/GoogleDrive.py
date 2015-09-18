@@ -10,7 +10,6 @@ import hashlib
 from oi.IO import IO
 import time
 
-
 class GoogleDrive(OnlineStorage.OnlineStorage):
     files = []
 
@@ -63,7 +62,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             try:
                 webbrowser.open(step1)
             except:
-                pass
+                IO.put("Error launching webbrowser to receive authorization code. You must manually visit the following url and enter the code at this page: \n{}".format(step1),"highlight")
             code = IO.get("Authorization Code:")
             self.project.log("transaction", "Auth code received: (" + code + ")", "info", True)
             # Step 2
@@ -96,10 +95,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         self.files = []
         self.project.log("transaction", "API Endpoint is " + self.project.config['API_ENDPOINT'], "info", True)
         self._get_items(Common.joinurl(self.project.config['API_ENDPOINT'], "files?maxResults=0"))
-        if self.project.args.mode == "full":
-            self.project.log("transaction", "Full sync mode", "info", True)
-        if self.project.args.mode == "metadata":
-            self.project.log("transaction", "Metadata sync mode", "info", True)
+
 
     def metadata(self):
         self.project.log("transaction", "Generating metadata CSV File...", "info", True)
@@ -185,6 +181,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                                      "warning", True)
             return p2
 
+
     def sync(self):
         d1 = datetime.now()
         d = Downloader.Downloader
@@ -244,91 +241,8 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                             self.file_size_bytes += int(file['fileSize'])
 
             if save_metadata_path:
-                if os.path.isfile(save_metadata_path):
-                    metadata_hash = Common.hashstring(json.dumps(file, sort_keys=True, indent=4).encode('utf-8'), hashlib.md5())
-                    metadata_file_hash = Common.hashfile(open(save_metadata_path, 'rb'), hashlib.md5())
-                    if metadata_hash == metadata_file_hash:
-                        self.project.log("exception","Local and remote hash matches for metadata for {} ... Skipping save".format(file['title']), "warning", True)
-                    else:
-                        self.project.log("exception","Local and remote hash differs for metadata for {} ... Saving".format(file['title']), "critical", True)
-                        self._save_file(None, Downloader.DownloadSlip(download_uri, file, save_metadata_path))
-                else:
-                    self._save_file(None, Downloader.DownloadSlip(download_uri, file, save_metadata_path))
-
-
-
-            #
-            #
-            #
-            #
-            #
-            # path_to_create = os.path.normpath(os.path.join(self.project.project_folders["data"], parentmap))
-            # _path_to_create = Common.safe_path(path_to_create)
-            #
-            # # We don't have to check these for safe_path because we are doing that with _patch_to_create already
-            # metadata_path = os.path.normpath(os.path.join(self.project.project_folders["metadata"], parentmap))
-            # metadata_path = Common.safe_path(metadata_path)
-            #
-            # #trash_path = os.path.normpath(os.path.join(self.project.project_folders["trash"], parentmap))
-            #
-            #
-            # if not _path_to_create:
-            #     self.project.log("exception", "ERROR '" + path_to_create + "' is too long a path for this operating system", "critical", True)
-            # else:
-            #     if path_to_create != _path_to_create:
-            #         self.project.log("exception", "Normalized '" + path_to_create + "' to '" + _path_to_create + "'",
-            #                          "warning", True)
-            #     path_to_create = _path_to_create
-            #     filetitle = Common.safe_file_name(file['title'])
-            #     if filetitle != file['title']:
-            #         self.project.log("exception", "Normalized '" + file['title'] + "' to '" + filetitle + "'", "warning",
-            #                          True)
-            #
-            #
-            #     file_savepath = os.path.join(path_to_create, filetitle)
-            #     meta_savepath = os.path.join(metadata_path, filetitle)
-            #
-            #
-            #     # Download metadata -- We always do this no matter what mode
-            #
-            #     if os.path.isfile(meta_savepath):
-            #         metadata_hash = Common.hashstring(json.dumps(file, sort_keys=True, indent=4), hashlib.md5())
-            #         metadata_file_hash = Common.hashfile(open(meta_savepath, 'rb'), hashlib.md5())
-            #         if metadata_hash == metadata_file_hash:
-            #             self.project.log("exception","Local and remote hash matches for metadata for {} ... Skipping save".format(file['title']), "warning", True)
-            #         else:
-            #             self.project.log("exception","Local and remote hash differs for metadata for {} ... Saving", "critical", True)
-            #             self._save_file(None, Downloader.DownloadSlip(download_uri, file, meta_savepath))
-            #     else:
-            #         self._save_file(None, Downloader.DownloadSlip(download_uri, file, meta_savepath))
-            #
-            #     # Download actual file -- We only do this on fullmode
-            #     if self.project.args.mode == "full":
-            #         if os.path.isfile(file_savepath):
-            #             if 'md5Checksum' in file:
-            #                 if Common.hashfile(open(file_savepath, 'rb'), hashlib.md5()) == file['md5Checksum']:
-            #                     download_file = False
-            #                     self.project.log("exception", "Local and remote hash matches for " + file[
-            #                         'title'] + " ... Skipping download", "warning", True)
-            #                 else:
-            #                     self.project.log("exception", "Local and remote hash differs for " + file[
-            #                         'title'] + " ... Queuing for download", "critical", True)
-            #             else:
-            #                 self.project.log("exception", "No hash information for file ' " + file['title'] + "'", "warning", True)
-            #                 if 'fileSize' in file:
-            #                     sz = os.stat(file_savepath)
-            #                     if sz.st_size == int(file['fileSize']):
-            #                         self.project.log("exception", "Local and remote file are same size for {} ... Skipping download".format(file['title']), "warning", True)
-            #                         download_file = False
-            #                     else:
-            #                         self.project.log("exception", "Local and remote file sizes are different for {} ... Queuing for download", "critical", True)
-            #
-            #         if download_file and download_uri:
-            #             self.project.log("transaction", "Queueing " + file['title'] + " for download...", "info", True)
-            #             d.put(Downloader.DownloadSlip(download_uri, file, file_savepath))
-            #             if 'fileSize' in file:
-            #                 self.file_size_bytes += int(file['fileSize'])
-
+                # We can't really use hashes here for metadata since some things like Thumbnail link can change on each request
+                self._save_file(None, Downloader.DownloadSlip(download_uri, file, save_metadata_path))
 
         self.project.log("transaction", "Total size of files to be synchronized is {}".format(
             Common.sizeof_fmt(self.file_size_bytes, "B")), "highlight", True)
