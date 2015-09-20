@@ -10,8 +10,12 @@ import hashlib
 from oi.IO import IO
 import time
 
+# TODO: Produce verification log of all files and hashes as files are being downloaded
+
+
 class GoogleDrive(OnlineStorage.OnlineStorage):
     files = []
+    verification = []
 
     oauth = {"access_token": "",
              "refresh_token": "",
@@ -96,15 +100,12 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         self.project.log("transaction", "API Endpoint is " + self.project.config['API_ENDPOINT'], "info", True)
         self._get_items(Common.joinurl(self.project.config['API_ENDPOINT'], "files?maxResults=0"))
 
-
     def metadata(self):
         self.project.log("transaction", "Generating metadata CSV File...", "info", True)
         if not self.files:
             self.initialize_items()
 
-        d = datetime.now()
-        fname = "FileList_{year}_{month}_{day}_{hour}_{minute}.csv".format(year=d.year, month=d.month, day=d.day,
-                                                                           hour=d.hour, minute=d.minute)
+        fname = Common.timely_filename("FileList", ".csv")
         metadata_file = os.path.join(self.project.working_dir, fname)
         IO.put("Writing CSV File '{}'".format(metadata_file))
 
@@ -168,19 +169,47 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             #columns = columns + rowStr + "\n"
         f.close()
 
-
     def assert_path(self, p):
-        p = os.path.abspath(p)
         p2 = Common.safe_path(p)
         if not p2:
-            self.project.log("exception", "ERROR '" + p + "' is too long a path for this operating system", "critical", True)
+            self.project.log("exception", "ERROR '" + p + "' is too long a path for this operating system - Could NOT save file.", "critical", True)
             return None
         else:
             if p2 != p:
-                self.project.log("exception", "Normalized '" + p + "' to '" + p2 + "'",
-                                     "warning", True)
-            return p2
+                self.project.log("exception", "Normalized '" + p + "' to '" + p2 + "'", "warning", True)
 
+        return p2
+
+    def verify(self):
+        self.project.log("transaction", "Verifying all downloaded files...", "highlight", True)
+        verification_file = os.path.join(self.project.working_dir, Common.timely_filename("verification", ".csv"))
+        errors = 0
+        pct = 0
+        tot_hashes = 0
+        with open(verification_file, 'w') as f:
+            f.write("TIME_PROCESSED,REMOTE_FILE,LOCAL_FILE,REMOTE_HASH,LOCAL_HASH,MATCH\r\n")
+            for item in self.verification:
+                rh = ""
+                match = ""
+                lh = Common.hashfile(open(item['local_file'], 'rb'), hashlib.md5())
+                lf = item['local_file']
+                rf = item['remote_file']
+                if 'remote_hash' in item:
+                    tot_hashes += 1
+                    rh = item['remote_hash']
+                    if lh == item['remote_hash']:
+                        match = "YES"
+                    else:
+                        match = "NO"
+                        errors += 1
+                        self.project.log("exception", "Verification failed for remote file {} and local file {}".format(rf,lf), "critical", True)
+                else:
+                    rh = "NONE PROVIDED"
+                    match = "N/A"
+                d = datetime.now()
+                f.write("'{date}','{rf}','{lf}','{rh}','{lh}','{m}'\r\n".format(date=str(d),rf=rf,lf=lf,rh=rh,lh=lh,m=match))
+        pct = ((tot_hashes - errors) / tot_hashes) * 100
+        self.project.log("transaction", "Verification completed with {} errors. {:.2f}%".format(errors, pct), "highlight", True)
 
     def sync(self):
         d1 = datetime.now()
@@ -189,6 +218,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             self.project.log("transaction", "Full synchronization initiated", "info", True)
             d = Downloader.Downloader(self.project, self.http_intercept, self._save_file, self.get_auth_header,
                                   self.project.threads)
+
         else:
             self.project.log("transaction", "Metadata synchronization initiated", "info", True)
 
@@ -202,37 +232,51 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             download_uri = self._get_download_url(file)
             parentmap = self._get_parent_mapping(file, self.files)
 
-            filetitle = Common.safe_file_name(file['title'])
+            filetitle = self._get_file_name(file)
             if filetitle != file['title']:
                     self.project.log("exception", "Normalized '" + file['title'] + "' to '" + filetitle + "'", "warning",
                                      True)
-            save_download_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["data"], parentmap), filetitle))
-            save_metadata_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["metadata"], parentmap), filetitle + ".json"))
+
+            if file['labels']['trashed'] == True:
+                save_download_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["trash"], parentmap), filetitle))
+                save_metadata_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["trash_metadata"], parentmap), filetitle + ".json"))
+            else:
+                save_download_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["data"], parentmap), filetitle))
+                save_metadata_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["metadata"], parentmap), filetitle + ".json"))
 
             save_download_path = self.assert_path(save_download_path)
             save_metadata_path = self.assert_path(save_metadata_path)
 
             if self.project.args.mode == "full":
-                download_file = True
                 if save_download_path:
+                    v = {"remote_file": os.path.join(parentmap, file['title']),
+                         "local_file": save_download_path}
+
+                    download_file = True
+                    if 'md5Checksum' in file:
+                        v['remote_hash'] = file['md5Checksum']
+
                     if os.path.isfile(save_download_path):
                         if 'md5Checksum' in file:
-                            if Common.hashfile(open(save_download_path, 'rb'), hashlib.md5()) == file['md5Checksum']:
+                            file_hash = Common.hashfile(open(save_download_path, 'rb'), hashlib.md5())
+                            if file_hash == file['md5Checksum']:
                                 download_file = False
                                 self.project.log("exception", "Local and remote hash matches for " + file[
                                     'title'] + " ... Skipping download", "warning", True)
                             else:
                                 self.project.log("exception", "Local and remote hash differs for " + file[
                                     'title'] + " ... Queuing for download", "critical", True)
+
+                                # # # TODO : DEBUG - This is how I caught all edge cases regarding multiple versioned files
+                                #     TODO: And other google drive oddities
+                                # print("FileHash=" + file_hash)
+                                # print("Remote=" + file['md5Checksum'])
+                                # print("ParentMapping=" + parentmap)
+                                # print("DLPath=" + save_download_path)
+                                # input()
+
                         else:
                             self.project.log("exception", "No hash information for file ' " + file['title'] + "'", "warning", True)
-                            if 'fileSize' in file:
-                                sz = os.stat(save_download_path)
-                                if sz.st_size == int(file['fileSize']):
-                                    self.project.log("exception", "Local and remote file are same size for {} ... Skipping download".format(file['title']), "warning", True)
-                                    download_file = False
-                                else:
-                                    self.project.log("exception", "Local and remote file sizes are different for {} ... Queuing for download".format(file['title']), "critical", True)
 
                     if download_file and download_uri:
                         self.project.log("transaction", "Queueing " + file['title'] + " for download...", "info", True)
@@ -240,8 +284,11 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                         if 'fileSize' in file:
                             self.file_size_bytes += int(file['fileSize'])
 
+                    # If it's a file we can add it to verification file
+                    if download_uri:
+                        self.verification.append(v)
+
             if save_metadata_path:
-                # We can't really use hashes here for metadata since some things like Thumbnail link can change on each request
                 self._save_file(None, Downloader.DownloadSlip(download_uri, file, save_metadata_path))
 
         self.project.log("transaction", "Total size of files to be synchronized is {}".format(
@@ -251,11 +298,11 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             IO.get("Press ENTER to begin synchronization...")
 
         d.start()
-        while not d.empty():
-            time.sleep(1)
+        d.wait_for_complete()
         d2 = datetime.now()
         delt = d2 - d1
-        self.project.log("transaction","Synchronization completed in {}".format(str(delt)), "highlight", True)
+        self.verify()
+        self.project.log("transaction", "Synchronization completed in {}".format(str(delt)), "highlight", True)
 
     def _save_file(self, data, slip):
         Common.check_for_pause(self.project)
@@ -296,16 +343,93 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                 return i
         return None
 
+    def is_duplicate(self, file):
+        for item in self.files:
+            if item['title'] == file['title']:
+                if file['version'] != item['version']:
+                    if self._get_parent_mapping(file, self.files) == self._get_parent_mapping(item, self.files):
+                        return True
+        return False
+
+    def _get_file_name(self, file):
+        mime_type = file['mimeType']
+        title = file['title']
+        ret = ""
+        version = ""
+        drivetype = ""
+        ext = ""
+        if self.is_duplicate(file):
+            version = ' (' + file['version'] + ')'
+
+        if ('application/vnd.google-apps' in mime_type) and (mime_type != "application/vnd.google-apps.folder"):
+            if 'exportLinks' in file:
+                export_link = self._get_download_url(file)
+                ext = '.' + export_link[export_link.index('exportFormat=') + 13:]
+                drivetype = mime_type[mime_type.rindex('.'):]
+
+        if '.' in title:
+            extension = title[title.rindex('.'):]
+            base = title[:title.rindex('.')]
+            filename = "{base}{extension}{drivetype}{ext}".format(base=base, extension=extension, drivetype=drivetype, ext=ext)
+        else:
+            filename = "{title}{drivetype}{ext}".format(title=title,drivetype=drivetype, ext=ext)
+
+        if '.' in filename:
+            extension = filename[filename.rindex('.'):]
+            base = filename[:filename.rindex('.')]
+            filename = "{base}{version}{extension}".format(base=base, version=version, extension=extension)
+        else:
+            filename = "{title}{version}".format(title=title, version=version)
+        return filename
+
     def _get_download_url(self, file):
-        preferred = "application/pdf"
         if 'downloadUrl' in file:
             return file['downloadUrl']
         if 'exportLinks' in file:
-            if preferred in file['exportLinks']:
-                return file['exportLinks'][preferred]
+            order = []
+            # The following logic makes the program functionality predictable
+            # Choose from a preferred list of mimetypes
+            # Or else sort the list alphabetically and choose the first option
+            # TODO: Find somewhere else to put this list
+            if file['mimeType'] == "application/vnd.google-apps.document":
+                order.append("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                order.append("application/vnd.oasis.opendocument.text")
+                order.append("application/pdf")
+                order.append("application/rtf")
+                order.append("text/plain")
+                order.append("text/html")
+            elif file['mimeType'] == "application/vnd.google-apps.spreadsheet":
+                order.append("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                order.append("application/x-vnd.oasis.opendocument.spreadsheet")
+                order.append("text/csv")
+                order.append("application/pdf")
+            elif file['mimeType'] == "application/vnd.google-apps.drawing":
+                order.append("image/png")
+                order.append("image/jpeg")
+                order.append("image/svg+xml")
+                order.append("application/pdf")
+            elif file['mimeType'] == "application/vnd.google-apps.presentation":
+                order.append("application/vnd.openxmlformats-officedocument.presentationml.presentation")
+                order.append("application/pdf")
+                order.append("text/plain")
+            else:
+                order = None
+
+            if order:
+                for mtype in order:
+                    if mtype in file['exportLinks']:
+                        return file['exportLinks'][mtype]
+
+            for key, value in sorted(file['exportLinks'].items()):
+                return file['exportLinks'][key]
+
         if "file" in file:
             return file[0]
-        return None
+        if file['mimeType'] == "application/vnd.google-apps.folder":
+            return None
+        else:
+            dl = Common.joinurl(self.project.config['API_ENDPOINT'], "files/{fileid}?alt=media".format(fileid=file['id']))
+            return dl
 
     def get_auth_header(self):
         return {'Authorization': 'Bearer ' + self.oauth['access_token']}

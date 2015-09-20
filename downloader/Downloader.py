@@ -3,6 +3,7 @@ from queue import Queue
 from common import Common
 from threading import Thread
 import threading
+import time
 
 class DownloadSlip:
 
@@ -26,6 +27,19 @@ class Downloader(Queue):
         self.http_callback = http_callback
         super(Downloader, self).__init__()
 
+    def wait_for_complete(self):
+        running = True
+        while not self.empty():
+            time.sleep(3)
+        while running:
+            download_thread = False
+            for t in threading.enumerate():
+                if 'Downloading' in t.name:
+                    download_thread = True
+            if not download_thread:
+                running = False
+            time.sleep(3)
+
     def start(self):
         for i in range(0, self.threads):
             t = Thread(target=self._downloader)
@@ -39,7 +53,7 @@ class Downloader(Queue):
             Common.check_for_pause(self.project)
             slip = self.get()
             file_url = slip.url
-            t.name = slip.item['title']
+            t.name = 'Downloading: ' + slip.item['title']
             self.project.log("transaction", "Downloading " + slip.item['title'], "info", True)
             data = Common.webrequest(file_url, self.headers(), self.http_callback, None, False, True) # Response object gets passed to shutil.copyfileobj
             self.storage_callback(data, slip)

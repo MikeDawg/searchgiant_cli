@@ -11,15 +11,13 @@ from googledrive import GoogleDrive
 import http.client
 
 
-
-
 class DefaultConfigs:
     defaults = {"google_drive":
                     ("TOKEN_ENDPOINT = 'https://accounts.google.com/o/oauth2/token'\r\n"
                      "OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive'\r\n"
                      "OAUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/auth'\r\n"
                      "API_VERSION = 'v2'\r\n"
-                     "API_ENDPOINT = ''\r\n"
+                     "API_ENDPOINT = 'https://www.googleapis.com/drive/v2'\r\n"
                      "REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'\r\n"
                      "CLIENT_ID = ''\r\n"
                      "CLIENT_SECRET = ''\r\n"),
@@ -41,7 +39,8 @@ class Project:
     working_dir = ""
     transaction_log = ""
     exception_log = ""
-    metadata_file= ""
+    verification_log = ""
+    metadata_file = ""
     config = None
     transaction_logger = None
     exception_logger = None
@@ -72,7 +71,8 @@ class Project:
         self.project_folders["data"] = os.path.join(self.working_dir, "data")
         self.project_folders["logs"] = os.path.join(self.working_dir, "logs")
         self.project_folders["metadata"] = os.path.join(self.working_dir, "metadata")
-
+        self.project_folders["trash"] = os.path.join(self.working_dir, "trash")
+        self.project_folders["trash_metadata"] = os.path.join(self.working_dir, "trash_metadata")
 
         self.config_file = os.path.join(self.working_dir, "config.cfg")
 
@@ -97,8 +97,10 @@ class Project:
 
         self.transaction_logger = logging.getLogger(project_name + "_t")
         self.exception_logger = logging.getLogger(project_name + "_e")
+
         self.transaction_logger.setLevel(20)
         self.exception_logger.setLevel(20)
+
         tfh = FileHandler(self.transaction_log)
         efh = FileHandler(self.exception_log)
 

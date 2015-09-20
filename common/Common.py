@@ -1,4 +1,3 @@
-__author__ = 'aurcioli'
 import urllib
 from urllib import parse
 import urllib.request
@@ -6,7 +5,12 @@ from urllib import error
 import time
 import os
 import sys
+from datetime import datetime
 
+def timely_filename(base, extension):
+    d = datetime.now()
+    s = "{base}_{year}-{month}-{day}-_{hour}-{minute}-{second}{ext}".format(base=base,year=d.year,month=d.month,day=d.day,hour=d.hour,minute=d.minute,second=d.second,ext=extension)
+    return s
 
 def safe_file_name(f):
     ret = f
@@ -109,7 +113,8 @@ def webrequest(url, headers, http_intercept, data=None, binary=False, return_req
     except urllib.error.HTTPError as err:
         # TODO REMOVE
         new_headers = http_intercept(err)
-        return webrequest(url, new_headers, http_intercept, data, binary, return_req)
+        if new_headers:
+            return webrequest(url, new_headers, http_intercept, data, binary, return_req)
 
 def sizeof_fmt(num, suffix='B'):
     for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
