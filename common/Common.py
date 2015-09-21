@@ -7,6 +7,16 @@ import os
 import sys
 from datetime import datetime
 
+def assert_path(p, project):
+    p2 = safe_path(p)
+    if not p2:
+        project.log("exception", "ERROR '" + p + "' is too long a path for this operating system - Could NOT save file.", "critical", True)
+        return None
+    else:
+        if p2 != p:
+            project.log("exception", "Normalized '" + p + "' to '" + p2 + "'", "warning", True)
+    return p2
+
 def timely_filename(base, extension):
     d = datetime.now()
     s = "{base}_{year}-{month}-{day}-_{hour}-{minute}-{second}{ext}".format(base=base,year=d.year,month=d.month,day=d.day,hour=d.hour,minute=d.minute,second=d.second,ext=extension)
@@ -43,6 +53,7 @@ def safe_file_name(f):
 
 def safe_path(p):
     if sys.platform == "win32":
+        p = os.path.abspath(p)
         p = path_normalization(p)
         if len(p) > 255:
             return None
@@ -91,7 +102,7 @@ def path_normalization(p):
 def webrequest(url, headers, http_intercept, data=None, binary=False, return_req=False):
     try:
         headers['user-agent'] = "searchgiant forensic cli"
-        if not data:
+        if data is None:
             # GET
             req = urllib.request.Request(url, None, headers)
             response = urllib.request.urlopen(req)

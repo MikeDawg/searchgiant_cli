@@ -1,3 +1,19 @@
+# searchgiant - Open source remote forensic acquisition tool
+# Copyright (C) 2015  Alexander Urcioli <alexurc@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 __author__ = 'alexander'
 import os
 import logging
@@ -8,6 +24,7 @@ import time
 import shutil
 from onlinestorage import OnlineStorage
 from googledrive import GoogleDrive
+from dropbox import Dropbox
 import http.client
 
 
@@ -61,6 +78,7 @@ class Project:
         self.name = project_name
         self.threads = threads
         self.working_dir = os.path.join(working_dir, self.name)
+        self.acquisition_dir = os.path.join(self.working_dir, "acquisition")
 
         if os.path.exists(self.working_dir):
             IO.put("Resuming project in " + self.working_dir, "highlight")
@@ -68,11 +86,11 @@ class Project:
             os.makedirs(self.working_dir, exist_ok=True)
             IO.put("Initializing project in " + self.working_dir, "highlight")
 
-        self.project_folders["data"] = os.path.join(self.working_dir, "data")
+        self.project_folders["data"] = os.path.join(self.acquisition_dir, "data")
         self.project_folders["logs"] = os.path.join(self.working_dir, "logs")
-        self.project_folders["metadata"] = os.path.join(self.working_dir, "metadata")
-        self.project_folders["trash"] = os.path.join(self.working_dir, "trash")
-        self.project_folders["trash_metadata"] = os.path.join(self.working_dir, "trash_metadata")
+        self.project_folders["metadata"] = os.path.join(self.acquisition_dir, "metadata")
+        self.project_folders["trash"] = os.path.join(self.acquisition_dir, "trash")
+        self.project_folders["trash_metadata"] = os.path.join(self.acquisition_dir, "trash_metadata")
 
         self.config_file = os.path.join(self.working_dir, "config.cfg")
 
@@ -118,7 +136,9 @@ class Project:
         if self.args.service == "google_drive":
             instance = GoogleDrive.GoogleDrive(self)
             instance.sync()
-
+        if self.args.service == "dropbox":
+            instance = Dropbox.Dropbox(self)
+            instance.sync()
 
     def log(self, type, message, level, stdout=False):
 

@@ -98,7 +98,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
     def initialize_items(self):
         self.files = []
         self.project.log("transaction", "API Endpoint is " + self.project.config['API_ENDPOINT'], "info", True)
-        self._get_items(Common.joinurl(self.project.config['API_ENDPOINT'], "files?maxResults=0"))
+        self._build_fs(Common.joinurl(self.project.config['API_ENDPOINT'], "files?maxResults=0"))
 
     def metadata(self):
         self.project.log("transaction", "Generating metadata CSV File...", "info", True)
@@ -169,17 +169,6 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             #columns = columns + rowStr + "\n"
         f.close()
 
-    def assert_path(self, p):
-        p2 = Common.safe_path(p)
-        if not p2:
-            self.project.log("exception", "ERROR '" + p + "' is too long a path for this operating system - Could NOT save file.", "critical", True)
-            return None
-        else:
-            if p2 != p:
-                self.project.log("exception", "Normalized '" + p + "' to '" + p2 + "'", "warning", True)
-
-        return p2
-
     def verify(self):
         self.project.log("transaction", "Verifying all downloaded files...", "highlight", True)
         verification_file = os.path.join(self.project.working_dir, Common.timely_filename("verification", ".csv"))
@@ -218,13 +207,12 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             self.project.log("transaction", "Full synchronization initiated", "info", True)
             d = Downloader.Downloader(self.project, self.http_intercept, self._save_file, self.get_auth_header,
                                   self.project.threads)
-
         else:
             self.project.log("transaction", "Metadata synchronization initiated", "info", True)
 
         self.initialize_items()
         cnt = len(self.files)
-        self.project.log("transaction", "Total files queued for synchronization: " + str(cnt), "info", True)
+        self.project.log("transaction", "Total items queued for synchronization: " + str(cnt), "info", True)
         self.metadata()
 
         for file in self.files:
@@ -244,8 +232,8 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                 save_download_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["data"], parentmap), filetitle))
                 save_metadata_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["metadata"], parentmap), filetitle + ".json"))
 
-            save_download_path = self.assert_path(save_download_path)
-            save_metadata_path = self.assert_path(save_metadata_path)
+            save_download_path = Common.assert_path(save_download_path, self.project)
+            save_metadata_path = Common.assert_path(save_metadata_path, self.project)
 
             if self.project.args.mode == "full":
                 if save_download_path:
@@ -280,7 +268,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
 
                     if download_file and download_uri:
                         self.project.log("transaction", "Queueing " + file['title'] + " for download...", "info", True)
-                        d.put(Downloader.DownloadSlip(download_uri, file, save_download_path))
+                        d.put(Downloader.DownloadSlip(download_uri, file, save_download_path, 'title'))
                         if 'fileSize' in file:
                             self.file_size_bytes += int(file['fileSize'])
 
@@ -354,7 +342,6 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
     def _get_file_name(self, file):
         mime_type = file['mimeType']
         title = file['title']
-        ret = ""
         version = ""
         drivetype = ""
         ext = ""
@@ -380,7 +367,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             filename = "{base}{version}{extension}".format(base=base, version=version, extension=extension)
         else:
             filename = "{title}{version}".format(title=title, version=version)
-        return filename
+        return Common.safe_file_name(filename)
 
     def _get_download_url(self, file):
         if 'downloadUrl' in file:
@@ -434,7 +421,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
     def get_auth_header(self):
         return {'Authorization': 'Bearer ' + self.oauth['access_token']}
 
-    def _get_items(self, link):
+    def _build_fs(self, link):
         self.project.log("transaction", "Calculating total drive items...", "info", True)
         response = Common.webrequest(link, self.get_auth_header(), self.http_intercept)
         json_response = json.loads(response)
@@ -442,7 +429,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         if 'nextLink' in json_response:
             items = json_response['items']
             self._add_items_to_files(items)
-            self._get_items(json_response['nextLink'])
+            self._build_fs(json_response['nextLink'])
         else:
             items = json_response['items']
             self._add_items_to_files(items)
