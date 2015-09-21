@@ -82,18 +82,17 @@ class Dropbox(OnlineStorage.OnlineStorage):
         pass
 
     def sync(self):
-        pass
         d1 = datetime.now()
         d = Downloader.Downloader
         if self.project.args.mode == "full":
-            self.project.log("transaction", "Full synchronization initiated", "info", True)
+            self.project.log("transaction", "Full acquisition initiated", "info", True)
             d = Downloader.Downloader(self.project, self.http_intercept, self._save_file, self.get_auth_header, self.project.threads)
         else:
-            self.project.log("transaction", "Metadata synchronization initiated", "info", True)
+            self.project.log("transaction", "Metadata acquisition initiated", "info", True)
         self.initialize_items()
         cnt = len(self.files)
 
-        self.project.log("transaction", "Total items queued for synchronization: " + str(cnt), "info", True)
+        self.project.log("transaction", "Total items queued for acquisition: " + str(cnt), "info", True)
         with open("files.json",'w') as f:
             f.write(json.dumps(self.files, sort_keys=True, indent=4))
         self.metadata()
@@ -119,8 +118,19 @@ class Dropbox(OnlineStorage.OnlineStorage):
                         if 'bytes' in file:
                             self.file_size_bytes += int(file['bytes'])
 
+
             else:
                 verification = {}
+
+        if self.project.args.prompt:
+            IO.get("Press ENTER to begin acquisition...")
+
+        d.start()
+        d.wait_for_complete()
+
+
+
+
 
     def _get_parent_mapping(self, file):
         # Nothing difficult about this one.

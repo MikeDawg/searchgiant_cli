@@ -196,23 +196,23 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                     rh = "NONE PROVIDED"
                     match = "N/A"
                 d = datetime.now()
-                f.write("'{date}','{rf}','{lf}','{rh}','{lh}','{m}'\r\n".format(date=str(d),rf=rf,lf=lf,rh=rh,lh=lh,m=match))
+                f.write('"{date}","{rf}","{lf}","{rh}","{lh}","{m}"\r\n'.format(date=str(d),rf=rf,lf=lf,rh=rh,lh=lh,m=match))
         pct = ((tot_hashes - errors) / tot_hashes) * 100
-        self.project.log("transaction", "Verification completed with {} errors. {:.2f}%".format(errors, pct), "highlight", True)
+        self.project.log("transaction", "Verification of {} items completed with {} errors. ({:.2f}% Success rate)".format(tot_hashes, errors, pct), "highlight", True)
 
     def sync(self):
         d1 = datetime.now()
         d = Downloader.Downloader
         if self.project.args.mode == "full":
-            self.project.log("transaction", "Full synchronization initiated", "info", True)
+            self.project.log("transaction", "Full acquisition initiated", "info", True)
             d = Downloader.Downloader(self.project, self.http_intercept, self._save_file, self.get_auth_header,
                                   self.project.threads)
         else:
-            self.project.log("transaction", "Metadata synchronization initiated", "info", True)
+            self.project.log("transaction", "Metadata acquisition initiated", "info", True)
 
         self.initialize_items()
         cnt = len(self.files)
-        self.project.log("transaction", "Total items queued for synchronization: " + str(cnt), "info", True)
+        self.project.log("transaction", "Total items queued for acquisition: " + str(cnt), "info", True)
         self.metadata()
 
         for file in self.files:
@@ -279,18 +279,18 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             if save_metadata_path:
                 self._save_file(None, Downloader.DownloadSlip(download_uri, file, save_metadata_path))
 
-        self.project.log("transaction", "Total size of files to be synchronized is {}".format(
+        self.project.log("transaction", "Total size of files to be acquired is {}".format(
             Common.sizeof_fmt(self.file_size_bytes, "B")), "highlight", True)
 
         if self.project.args.prompt:
-            IO.get("Press ENTER to begin synchronization...")
+            IO.get("Press ENTER to begin acquisition...")
 
         d.start()
         d.wait_for_complete()
         d2 = datetime.now()
         delt = d2 - d1
         self.verify()
-        self.project.log("transaction", "Synchronization completed in {}".format(str(delt)), "highlight", True)
+        self.project.log("transaction", "Acquisition completed in {}".format(str(delt)), "highlight", True)
 
     def _save_file(self, data, slip):
         Common.check_for_pause(self.project)
