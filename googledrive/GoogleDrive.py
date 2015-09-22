@@ -277,7 +277,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                         self.verification.append(v)
 
             if save_metadata_path:
-                self._save_file(None, Downloader.DownloadSlip(download_uri, file, save_metadata_path))
+                self._save_file(json.dumps(file, sort_keys=True, indent=4), Downloader.DownloadSlip(download_uri, file, save_metadata_path, 'title'))
 
         self.project.log("transaction", "Total size of files to be acquired is {}".format(
             Common.sizeof_fmt(self.file_size_bytes, "B")), "highlight", True)
