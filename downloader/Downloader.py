@@ -53,7 +53,10 @@ class Downloader(Queue):
             t = threading.current_thread()
             Common.check_for_pause(self.project)
             slip = self.get()
-            file_url = slip.url
+            if callable(slip.url):
+                file_url = slip.url()
+            else:
+                file_url = slip.url
             t.name = 'Downloading: ' + slip.item[slip.filename_key]
             self.project.log("transaction", "Downloading " + slip.item[slip.filename_key], "info", True)
             data = Common.webrequest(file_url, self.headers(), self.http_callback, None, False, True) # Response object gets passed to shutil.copyfileobj

@@ -7,9 +7,8 @@ import webbrowser
 from datetime import datetime, timedelta
 from downloader import Downloader
 import os
-import hashlib
 from oi.IO import IO
-import time
+
 
 # TODO: Needs to download folder metadata too
 class Dropbox(OnlineStorage.OnlineStorage):
@@ -81,6 +80,9 @@ class Dropbox(OnlineStorage.OnlineStorage):
     def metadata(self):
         pass
 
+    def verify(self):
+        pass
+
     def sync(self):
         d1 = datetime.now()
         d = Downloader.Downloader
@@ -101,9 +103,10 @@ class Dropbox(OnlineStorage.OnlineStorage):
         # TODO: Original file listing (/delta) does not return folder hashes
         # TODO: or deleted files
         for file in self.files:
-            self.project.log("transaction", "Calculating " + file['path'])
+
+            self.project.log("transaction", "Calculating " + file['path'], "info", True)
             if file['is_dir'] == False:
-                download_uri = self._get_download_uri(file)
+                download_uri = lambda: self._get_download_uri(file)
                 parentmap = self._get_parent_mapping(file)
                 filetitle = self._get_file_name(file)
                 orig = os.path.basename(file['path'])
@@ -111,31 +114,32 @@ class Dropbox(OnlineStorage.OnlineStorage):
                     self.project.log("exception", "Normalized '{}' to '{}'", "warning".format(orig, filetitle), True)
 
                 save_download_path = Common.assert_path(os.path.normpath(os.path.join(os.path.join(self.project.project_folders['data'], parentmap), filetitle)), self.project)
+                print(save_download_path)
                 if self.project.args.mode == "full":
                     if save_download_path:
                         self.project.log("transaction", "Queueing {} for download...".format(orig), "info", True)
                         d.put(Downloader.DownloadSlip(download_uri, file, save_download_path, 'path'))
                         if 'bytes' in file:
                             self.file_size_bytes += int(file['bytes'])
-
-
             else:
                 verification = {}
 
+        self.project.log("transaction", "Total size of files to be acquired is {}".format(Common.sizeof_fmt(self.file_size_bytes, "B")), "highlight", True)
         if self.project.args.prompt:
             IO.get("Press ENTER to begin acquisition...")
 
         d.start()
         d.wait_for_complete()
-
-
-
+        d2 = datetime.now()
+        delt = d2 - d1
+        self.verify()
+        self.project.log("transaction", "Acquisition completed in {}".format(str(delt)), "highlight", True)
 
 
     def _get_parent_mapping(self, file):
         # Nothing difficult about this one.
         dir = os.path.dirname(file['path'])
-        return dir.replace('/', os.sep)
+        return dir.replace('/', os.sep)[1:]
 
     def _get_file_name(self, file):
         fname = os.path.basename(file['path'])
@@ -153,7 +157,22 @@ class Dropbox(OnlineStorage.OnlineStorage):
         # TODO: Implement for this and GoogleDrive
         pass
 
-    def _save_file(self):
+    def _save_file(self, data, slip):
+        # TODO : Where else to put this vvv checkforpause
+        Common.check_for_pause(self.project)
+        savepath = slip.savepath
+        file_item = slip.item
+        path_to_create = os.path.dirname(savepath)
+        if not os.path.isdir(path_to_create):
+            os.makedirs(path_to_create, exist_ok=True)
+        if data:
+            self.project.savedata(data, savepath)
+            self.project.log("transaction", "Saved file to " + savepath, "info", True)
+        else:
+            self.project.log("transaction", "Saving metadata to " + savepath, "info", True)
+            data = json.dumps(file_item, sort_keys=True, indent=4)
+            self.project.savedata(data, savepath, False)
+
         pass
 
     def initialize_items(self):
@@ -172,7 +191,7 @@ class Dropbox(OnlineStorage.OnlineStorage):
         has_more = json_response['has_more']
         cursor = json_response['cursor']
         for item in json_response['entries']:
-            self.files.append(item)
+            self.files.append(item[1])
         if has_more:
             self._build_fs(link, cursor)
 
