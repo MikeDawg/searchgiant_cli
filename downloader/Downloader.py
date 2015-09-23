@@ -60,6 +60,7 @@ class Downloader(Queue):
             t.name = 'Downloading: ' + slip.item[slip.filename_key]
             self.project.log("transaction", "Downloading " + slip.item[slip.filename_key], "info", True)
             data = Common.webrequest(file_url, self.headers(), self.http_callback, None, False, True) # Response object gets passed to shutil.copyfileobj
+            print(data)
             self.storage_callback(data, slip)
         if self.project.shutdown_signal:
             self.project.log("exception", "{} received shutdown signal. Stopping...".format(threading.current_thread().name), "warning")

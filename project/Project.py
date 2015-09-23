@@ -31,7 +31,7 @@ import http.client
 class DefaultConfigs:
     defaults = {"google_drive":
                     ("TOKEN_ENDPOINT = 'https://accounts.google.com/o/oauth2/token'\r\n"
-                     "OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive'\r\n"
+                     "OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive.readonly'\r\n"
                      "OAUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/auth'\r\n"
                      "API_VERSION = 'v2'\r\n"
                      "API_ENDPOINT = 'https://www.googleapis.com/drive/v2'\r\n"
@@ -40,12 +40,10 @@ class DefaultConfigs:
                      "CLIENT_SECRET = ''\r\n"),
 
                  "dropbox":
-                     ("TOKEN_ENDPOINT = 'https://api.dropboxapi.com/1/oauth2/token'\r\n"
-                      "OAUTH_ENDPOINT = 'https://www.dropbox.com/1/oauth2/authorize'\r\n"
+                     (
                       "CLIENT_ID = ''\r\n"
                       "CLIENT_SECRET = ''\r\n"
-                      "API_ENDPOINT = 'https://api.dropboxapi.com/1'\r\n"
-                      "CONTENT_ENDPOINT = 'https://content.dropboxapi.com/1'\r\n")
+                      )
 
                }
 

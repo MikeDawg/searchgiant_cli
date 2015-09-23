@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 
 def assert_path(p, project):
+    p = os.path.abspath(p)
     p2 = safe_path(p)
     if not p2:
         project.log("exception", "ERROR '" + p + "' is too long a path for this operating system - Could NOT save file.", "critical", True)
@@ -53,7 +54,6 @@ def safe_file_name(f):
 
 def safe_path(p):
     if sys.platform == "win32":
-        p = os.path.abspath(p)
         p = path_normalization(p)
         if len(p) > 255:
             return None
@@ -122,7 +122,6 @@ def webrequest(url, headers, http_intercept, data=None, binary=False, return_req
             return response.read().decode('utf-8')
 
     except urllib.error.HTTPError as err:
-        # TODO REMOVE
         new_headers = http_intercept(err)
         if new_headers:
             return webrequest(url, new_headers, http_intercept, data, binary, return_req)

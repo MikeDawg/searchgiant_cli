@@ -3,12 +3,11 @@ from onlinestorage import OnlineStorage
 from common import Common
 import json
 import urllib.parse
-import webbrowser
 from datetime import datetime, timedelta
 from downloader import Downloader
 import os
 from oi.IO import IO
-
+from oauth2providers import OAuth2Providers
 
 # TODO: Needs to download folder metadata too
 class Dropbox(OnlineStorage.OnlineStorage):
@@ -20,62 +19,13 @@ class Dropbox(OnlineStorage.OnlineStorage):
 
     def __init__(self, project):
         self.project = project
+        self.oauth_provider = OAuth2Providers.OAuth2Provider(self, "dropbox", 'access_token')
         self.files = []
         self.file_size_bytes = 0
         if 'OAUTH' in self.project.config:
             self.oauth = self.project.config['OAUTH']
-        super(Dropbox, self).__init__(self.project.config['API_ENDPOINT'], project.name)
-
-    def _authorize(self):
-        self.project.log("transaction", "Initiating OAUTH 2 Protocol with " + self.project.config['TOKEN_ENDPOINT'], "info", True)
-        if not self.oauth["access_token"]:
-            self.project.log("transaction", "No valid access token found..", "warning", True)
-            if not self.project.config['CLIENT_ID'] or not self.project.config['CLIENT_SECRET']:
-                self.project.log("transaction", "No app key or app secret. Ask for user input..", "warning", True)
-                IO.put("You must configure your account for OAUTH 2.0")
-                IO.put("Please visit https://www.dropbox.com/developers/apps")
-                IO.put("& create an application.")
-                try:
-                    webbrowser.open("https://www.dropbox.com/developers/apps")
-                except:
-                    pass
-
-                app_key = IO.get("App Key:")
-                app_secret = IO.get("App Secret:")
-                self.project.save("CLIENT_ID", app_key)
-                self.project.save("CLIENT_SECRET", app_secret)
-                self.project.log("transaction", "Received app key and app secret from user ({}) ({})".format(app_key,app_secret),"info",True)
-                # Step 1
-                self.get_access_token(app_key, app_secret)
-            else:
-                self.get_access_token(self.project.config['CLIENT_ID'], self.project.config['CLIENT_SECRET'])
-
-        self.project.log("transaction", "Authorization complete", "info", True)
-
-    def get_access_token(self, app_key, app_secret):
-        response_type = 'code'
-        query_string = ({'response_type': response_type, 'client_id': app_key})
-        params = urllib.parse.urlencode(query_string)
-        step1 = self.project.config['OAUTH_ENDPOINT'] + '?' + params
-        try:
-            webbrowser.open(step1)
-        except:
-            IO.put("Error launching webbrowser to receive authorization code. You must manually visit the following url and enter the code at this page: \n{}".format(step1),"highlight")
-
-        code = IO.get("Authorization Code:")
-        self.project.log("transaction", "Auth code received: ({})".format(code), "info", True)
-
-        #Step 2
-        query_string = ({'code': code, 'grant_type': 'authorization_code', 'client_id': app_key, 'client_secret': app_secret})
-        params = urllib.parse.urlencode(query_string)
-        response = Common.webrequest(self.project.config['TOKEN_ENDPOINT'], {'content-type': 'application/x-www-form-urlencoded;charset=utf-8'}, self.http_intercept, params)
-        json_response = json.loads(response)
-        self._parse_token(json_response)
-        self.project.save("OAUTH", self.oauth)
-
-    def _parse_token(self, response):
-        self.oauth['access_token'] = response['access_token']
-        self.oauth['uid'] = response['uid']
+        print(self.oauth_provider.config)
+        super(Dropbox, self).__init__(self, project.name)
 
     def metadata(self):
         pass
@@ -88,7 +38,7 @@ class Dropbox(OnlineStorage.OnlineStorage):
         d = Downloader.Downloader
         if self.project.args.mode == "full":
             self.project.log("transaction", "Full acquisition initiated", "info", True)
-            d = Downloader.Downloader(self.project, self.http_intercept, self._save_file, self.get_auth_header, self.project.threads)
+            d = Downloader.Downloader(self.project, self.oauth_provider.http_intercept, self._save_file, self.oauth_provider.get_auth_header, self.project.threads)
         else:
             self.project.log("transaction", "Metadata acquisition initiated", "info", True)
         self.initialize_items()
@@ -111,10 +61,9 @@ class Dropbox(OnlineStorage.OnlineStorage):
                 filetitle = self._get_file_name(file)
                 orig = os.path.basename(file['path'])
                 if filetitle != orig:
-                    self.project.log("exception", "Normalized '{}' to '{}'", "warning".format(orig, filetitle), True)
+                    self.project.log("exception", "Normalized '{}' to '{}'".format(orig, filetitle), "warning", True)
 
                 save_download_path = Common.assert_path(os.path.normpath(os.path.join(os.path.join(self.project.project_folders['data'], parentmap), filetitle)), self.project)
-                print(save_download_path)
                 if self.project.args.mode == "full":
                     if save_download_path:
                         self.project.log("transaction", "Queueing {} for download...".format(orig), "info", True)
@@ -135,7 +84,6 @@ class Dropbox(OnlineStorage.OnlineStorage):
         self.verify()
         self.project.log("transaction", "Acquisition completed in {}".format(str(delt)), "highlight", True)
 
-
     def _get_parent_mapping(self, file):
         # Nothing difficult about this one.
         dir = os.path.dirname(file['path'])
@@ -146,7 +94,7 @@ class Dropbox(OnlineStorage.OnlineStorage):
         return Common.safe_file_name(fname)
 
     def _get_download_uri(self, file):
-        response = Common.webrequest(self.project.config['API_ENDPOINT'] + '/media/auto' + file['path'], self.get_auth_header(), self.http_intercept)
+        response = Common.webrequest(self.oauth_provider.config['API_ENDPOINT'] + '/media/auto' + file['path'], self.oauth_provider.get_auth_header(), self.oauth_provider.http_intercept)
         json_response = json.loads(response)
         if 'url' in json_response:
             return json_response['url']
@@ -157,36 +105,36 @@ class Dropbox(OnlineStorage.OnlineStorage):
         # TODO: Implement for this and GoogleDrive
         pass
 
-    def _save_file(self, data, slip):
-        # TODO : Where else to put this vvv checkforpause
-        Common.check_for_pause(self.project)
-        savepath = slip.savepath
-        file_item = slip.item
-        path_to_create = os.path.dirname(savepath)
-        if not os.path.isdir(path_to_create):
-            os.makedirs(path_to_create, exist_ok=True)
-        if data:
-            self.project.savedata(data, savepath)
-            self.project.log("transaction", "Saved file to " + savepath, "info", True)
-        else:
-            self.project.log("transaction", "Saving metadata to " + savepath, "info", True)
-            data = json.dumps(file_item, sort_keys=True, indent=4)
-            self.project.savedata(data, savepath, False)
-
-        pass
+    # def _save_file(self, data, slip):
+    #     # TODO : Where else to put this vvv checkforpause
+    #     Common.check_for_pause(self.project)
+    #     savepath = slip.savepath
+    #     file_item = slip.item
+    #     path_to_create = os.path.dirname(savepath)
+    #     if not os.path.isdir(path_to_create):
+    #         os.makedirs(path_to_create, exist_ok=True)
+    #     if data:
+    #         self.project.savedata(data, savepath)
+    #         self.project.log("transaction", "Saved file to " + savepath, "info", True)
+    #     else:
+    #         self.project.log("transaction", "Saving metadata to " + savepath, "info", True)
+    #         data = json.dumps(file_item, sort_keys=True, indent=4)
+    #         self.project.savedata(data, savepath, False)
+    #
+    #     pass
 
     def initialize_items(self):
         self.files = []
-        self.project.log("transaction", "API Endpoint is " + self.project.config['API_ENDPOINT'], "info", True)
-        link = self.project.config['API_ENDPOINT'] + '/delta'
+        self.project.log("transaction", "API Endpoint is " + self.oauth_provider.config['API_ENDPOINT'], "info", True)
+        link = self.oauth_provider.config['API_ENDPOINT'] + '/delta'
         self._build_fs(link)
 
     def _build_fs(self, link, cursor = None):
         self.project.log("transaction", "Calculating total dropbox items...", "info", True)
         if cursor:
-            response = Common.webrequest(link, self.get_auth_header(), self.http_intercept, urllib.parse.urlencode({'cursor': cursor}))
+            response = Common.webrequest(link, self.oauth_provider.get_auth_header(), self.oauth_provider.http_intercept, urllib.parse.urlencode({'cursor': cursor}))
         else:
-            response = Common.webrequest(link, self.get_auth_header(), self.http_intercept, "")
+            response = Common.webrequest(link, self.oauth_provider.get_auth_header(), self.oauth_provider.http_intercept, "")
         json_response = json.loads(response)
         has_more = json_response['has_more']
         cursor = json_response['cursor']
@@ -194,14 +142,14 @@ class Dropbox(OnlineStorage.OnlineStorage):
             self.files.append(item[1])
         if has_more:
             self._build_fs(link, cursor)
-
-    def http_intercept(self, err):
-        if err.code == 401 or err.code == 400:
-            self._authorize()
-            return self.get_auth_header()
-        else:
-            self.project.log("exception", "Error and system does not know how to handle: " + str(err.code), "critical",
-                             True)
-
-    def get_auth_header(self):
-        return {'Authorization': 'Bearer ' + self.oauth['access_token']}
+    #
+    # def http_intercept(self, err):
+    #     if err.code == 401 or err.code == 400:
+    #         self._authorize()
+    #         return self.get_auth_header()
+    #     else:
+    #         self.project.log("exception", "Error and system does not know how to handle: " + str(err.code), "critical",
+    #                          True)
+    #
+    # def get_auth_header(self):
+    #     return {'Authorization': 'Bearer ' + self.oauth['access_token']}
