@@ -35,26 +35,6 @@ class OAuth2Provider:
     }
 
 
-    # defaults = {"google_drive":
-    #                 ("TOKEN_ENDPOINT = 'https://accounts.google.com/o/oauth2/token'\r\n"
-    #                  "OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive.readonly'\r\n" <---- PROJECT CONFIG
-    #                  "OAUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/auth'\r\n"
-    #                  "API_VERSION = 'v2'\r\n"
-    #                  "API_ENDPOINT = 'https://www.googleapis.com/drive/v2'\r\n" <----- PROJECT CONFIG
-    #                  "REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'\r\n"
-    #                  "CLIENT_ID = ''\r\n"
-    #                  "CLIENT_SECRET = ''\r\n"),
-    #
-    #              "dropbox":
-    #                  ("TOKEN_ENDPOINT = 'https://api.dropboxapi.com/1/oauth2/token'\r\n"
-    #                   "OAUTH_ENDPOINT = 'https://www.dropbox.com/1/oauth2/authorize'\r\n"
-    #                   "CLIENT_ID = ''\r\n"
-    #                   "CLIENT_SECRET = ''\r\n"
-    #                   "API_ENDPOINT = 'https://api.dropboxapi.com/1'\r\n"
-    #                   "CONTENT_ENDPOINT = 'https://content.dropboxapi.com/1'\r\n")
-    #
-    #            }
-
     provider = ""
     oauth = {"access_token": "",
               "refresh_token": "",
@@ -160,6 +140,9 @@ class OAuth2Provider:
             if err.code == 401:
                 self.authorize()
                 return self.get_auth_header()
+            if err.code == 503:
+                self.project.log("warning", "API Quota reached", "critical", True)
+                # TODO: FIX Behavior with http_error
         elif self.provider == "dropbox":
             if err.code == 401 or err.code == 400:
                 self.authorize()
@@ -171,3 +154,4 @@ class OAuth2Provider:
 
     def http_error(self, err):
         self.project.log("exception", "HTTP Error: {} - Unhandled".format(err.code), "critical", True)
+

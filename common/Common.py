@@ -101,6 +101,7 @@ def path_normalization(p):
 
 
 def webrequest(url, headers, http_intercept, data=None, binary=False, return_req=False):
+    print(url)
     try:
         headers['user-agent'] = "searchgiant forensic cli"
         if data is None:

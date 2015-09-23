@@ -7,6 +7,10 @@ from oi import IO
 from common import Common
 import threading
 import time
+import urllib.error
+import http.client
+
+
 
 parser = argparse.ArgumentParser(description="Cloud Service forensic imaging tool")
 parser.add_argument('project_dir', metavar='project_dir', type=str,
@@ -40,6 +44,14 @@ except KeyboardInterrupt:
             IO.IO.put("Active: {}".format(t.name))
         IO.IO.put("Waiting for all threads to shutdown gracefully...({} remaining)".format(threading.active_count()), "warning")
         time.sleep(3)
+
+except urllib.error.HTTPError as err:
+    # TODO : Finish
+    pass
+
+except http.client.IncompleteRead:
+    # TODO : Finish
+    pass
 
 except Exception as err:
     print(str(err), sys.stderr)

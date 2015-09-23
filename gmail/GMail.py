@@ -144,7 +144,8 @@ class GMail(OnlineStorage.OnlineStorage):
         if 'nextPageToken' in json_response:
             threads = json_response['threads']
             self._add_items_to_threads(threads)
-            self._build_fs(json_response['nextPageToken'])
+            next_url = Common.joinurl(self.project.config['API_ENDPOINT'], "users/me/threads?userId=me&includeSpamTrash=true&pageToken={}".format(json_response['nextPageToken']))
+            self._build_fs(next_url)
         else:
             items = json_response['threads']
             self._add_items_to_threads(items)

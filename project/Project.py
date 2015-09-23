@@ -164,7 +164,7 @@ class Project:
                     f.write(data.encode())
 
         except http.client.IncompleteRead:
-            # TODO: Check yourself before you wreck yourself
-            print("OMG INCOMPLETE READ, WHAT DO?!")
-            input()
+
+            self.log("exception", "WARNING - HTTP Incomplete Read from remote host to ({}) : Aborting!".format(filepath), "critical", True)
+            raise
 
