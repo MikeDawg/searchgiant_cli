@@ -22,9 +22,8 @@ class Dropbox(OnlineStorage.OnlineStorage):
         self.oauth_provider = OAuth2Providers.OAuth2Provider(self, "dropbox", 'access_token')
         self.files = []
         self.file_size_bytes = 0
-        if 'OAUTH' in self.project.config:
-            self.oauth = self.project.config['OAUTH']
-        print(self.oauth_provider.config)
+        # if 'OAUTH' in self.project.config:
+        #     self.oauth = self.project.config['OAUTH']
         super(Dropbox, self).__init__(self, project.name)
 
     def metadata(self):
@@ -56,7 +55,7 @@ class Dropbox(OnlineStorage.OnlineStorage):
 
             self.project.log("transaction", "Calculating " + file['path'], "info", True)
             if file['is_dir'] == False:
-                download_uri = lambda: self._get_download_uri(file)
+                download_uri = lambda f=file: self._get_download_uri(f)
                 parentmap = self._get_parent_mapping(file)
                 filetitle = self._get_file_name(file)
                 orig = os.path.basename(file['path'])

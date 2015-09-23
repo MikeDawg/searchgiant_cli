@@ -25,27 +25,12 @@ import shutil
 from onlinestorage import OnlineStorage
 from googledrive import GoogleDrive
 from dropbox import Dropbox
+from gmail import GMail
 import http.client
 
 
 class DefaultConfigs:
-    defaults = {"google_drive":
-                    ("TOKEN_ENDPOINT = 'https://accounts.google.com/o/oauth2/token'\r\n"
-                     "OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive.readonly'\r\n"
-                     "OAUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/auth'\r\n"
-                     "API_VERSION = 'v2'\r\n"
-                     "API_ENDPOINT = 'https://www.googleapis.com/drive/v2'\r\n"
-                     "REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'\r\n"
-                     "CLIENT_ID = ''\r\n"
-                     "CLIENT_SECRET = ''\r\n"),
-
-                 "dropbox":
-                     (
-                      "CLIENT_ID = ''\r\n"
-                      "CLIENT_SECRET = ''\r\n"
-                      )
-
-               }
+    defaults = ("CLIENT_ID = ''\r\nCLIENT_SECRET = ''\r\n")
 
 class Project:
     shutdown_signal = 0
@@ -103,7 +88,7 @@ class Project:
         if not os.path.isfile(self.config_file):
             IO.put("Config file not found, creating default config file", "warn")
             with open(self.config_file, 'w') as f:
-                f.write(DefaultConfigs.defaults[self.name])
+                f.write(DefaultConfigs.defaults)
 
         self.config = ConfigLoader.ConfigLoader()
         self.config.from_file(self.config_file)
@@ -137,6 +122,10 @@ class Project:
         if self.args.service == "dropbox":
             instance = Dropbox.Dropbox(self)
             instance.sync()
+        if self.args.service == "gmail":
+            instance = GMail.GMail(self)
+            instance.sync()
+
 
     def log(self, type, message, level, stdout=False):
 

@@ -56,24 +56,27 @@ class OAuth2Provider:
     #            }
 
     provider = ""
-
+    oauth = {"access_token": "",
+              "refresh_token": "",
+              "expires_in:": 0}
     def __init__(self, app, provider, key_to_the_kingdom):
         self.app = app
         self.provider = provider
         self.project = app.project
         self.config = self.default[provider]
-        self.oauth = {"access_token": "",
-                      "refresh_token": "",
-                      "expires_in:": 0}
+        if 'OAUTH' in self.project.config:
+            self.oauth = self.project.config['OAUTH']
         self.key_to_the_kingdom = key_to_the_kingdom
 
     def authorize(self):
         self.project.log("transaction", "Initiating OAUTH2 Protocol with " + self.config['TOKEN_ENDPOINT'], "info",
                          True)
-
-        if not self.oauth[self.key_to_the_kingdom]:
+        key_exists = self.oauth.get(self.key_to_the_kingdom)
+        if not key_exists:
             self.project.log("transaction", "No valid {} found...".format(self.key_to_the_kingdom), "warning", True)
-            if not self.project.config["CLIENT_ID"] or not self.project.config["CLIENT_SECRET"]:
+            c_id = self.project.config.get("CLIENT_ID")
+            c_secret = self.project.config.get("CLIENT_SECRET")
+            if not c_id or not c_secret:
                 self.project.log("transaction", "No CLIENT_ID or CLIENT_SECRET. Asking for user input", "warning", True)
 
                 IO.put("You must configure your account for OAUTH 2.0")

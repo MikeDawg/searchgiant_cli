@@ -5,7 +5,8 @@ from urllib import error
 import time
 import os
 import sys
-from datetime import datetime
+import datetime
+
 
 def assert_path(p, project):
     p = os.path.abspath(p)
@@ -19,7 +20,7 @@ def assert_path(p, project):
     return p2
 
 def timely_filename(base, extension):
-    d = datetime.now()
+    d = datetime.datetime.now()
     s = "{base}_{year}-{month}-{day}-_{hour}-{minute}-{second}{ext}".format(base=base,year=d.year,month=d.month,day=d.day,hour=d.hour,minute=d.minute,second=d.second,ext=extension)
     return s
 
@@ -150,3 +151,45 @@ def dialog_result(response, default=True):
         return True
     if response[0] == "n":
         return False
+
+
+
+class Eastern(datetime.tzinfo):
+    def utcoffset(self, dt):
+        return datetime.timedelta(hours=-5)
+
+    def tzname(self, dt):
+        return "EST"
+
+    def dst(self, dt):
+        return datetime.timedelta(0)
+
+
+class Universal(datetime.tzinfo):
+    def utcoffset(self, dt):
+        return datetime.timedelta(hours=0)
+
+    def tzname(self, dt):
+        return "UTC"
+
+    def dst(self, dt):
+        return datetime.timedelta(0)
+
+
+def getdate_withtz(tzclass):
+    d = datetime.datetime.utcnow()
+    d = d.replace(tzinfo=tzclass)
+    return d
+
+def utc_get_date_as_string():
+    UTC = Universal()
+    d = getdate_withtz(UTC)
+    return d.strftime("(%Z) %Y-%m-%d")
+
+def utc_get_datetime_as_string():
+    UTC = Universal()
+    d = getdate_withtz(UTC)
+    return d.strftime("(%Z) %Y-%m-%d %H:%M:%S")
+
+
+

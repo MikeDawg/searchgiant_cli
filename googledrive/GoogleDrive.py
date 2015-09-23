@@ -16,8 +16,6 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
              "refresh_token": "",
              "expires_in:": 0}
 
-    input_callback = None
-
     def __init__(self, project):
         self.project = project
         self.oauth_provider = OAuth2Providers.OAuth2Provider(self,"google", "refresh_token")
@@ -25,72 +23,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         self.project.save("OAUTH_SCOPE", 'https://www.googleapis.com/auth/drive.readonly')
         self.files = []
         self.file_size_bytes = 0
-        if "OAUTH" in self.project.config:
-            self.oauth = self.project.config['OAUTH']
         super(GoogleDrive, self).__init__(self, project.name)
-
-    # def _authorize(self):
-    #     self.project.log("transaction", "Initiating OAUTH 2 Protocol with " + self.project.config['TOKEN_ENDPOINT'],
-    #                      "info", True)
-    #     if not self.oauth['refresh_token']:
-    #         self.project.log("transaction", "No valid refresh token found..", "warning", True)
-    #         if not self.project.config['CLIENT_ID'] or not self.project.config['CLIENT_SECRET']:
-    #             self.project.log("transaction", "No client id or client secret. Asking for user input..", "warning",
-    #                              True)
-    #             IO.put("You must configure your account for OAUTH 2.0")
-    #             IO.put("Please visit https://console.developers.google.com/project")
-    #             IO.put("& create an OAUTH 2.0 client ID under APIs & Auth > Credentials")
-    #             try:
-    #                 webbrowser.open("http://console.developers.google.com/project")
-    #             except:
-    #                 pass
-    #             client_id = IO.get("Client ID:")
-    #             client_secret = IO.get("Client Secret:")
-    #             self.project.save("CLIENT_ID", client_id)
-    #             self.project.save("CLIENT_SECRET", client_secret)
-    #             self.project.log("transaction",
-    #                              "Received client_id and client_secret from user (" + client_id + ") (" + client_id + ")",
-    #                              "info", True)
-    #
-    #         # Step 1
-    #         response_type = 'code'
-    #         query_string = (
-    #             {'redirect_uri': self.project.config['REDIRECT_URI'], 'response_type': response_type,
-    #              'client_id': self.project.config['CLIENT_ID'],
-    #              'scope': self.project.config['OAUTH_SCOPE'], 'approval_prompt': 'force', 'access_type': 'offline'})
-    #         params = urllib.parse.urlencode(query_string)
-    #         step1 = self.project.config['OAUTH_ENDPOINT'] + '?' + params
-    #         try:
-    #             webbrowser.open(step1)
-    #         except:
-    #             IO.put("Error launching webbrowser to receive authorization code. You must manually visit the following url and enter the code at this page: \n{}".format(step1),"highlight")
-    #         code = IO.get("Authorization Code:")
-    #         self.project.log("transaction", "Auth code received: (" + code + ")", "info", True)
-    #         # Step 2
-    #         query_string = ({'code': code, 'redirect_uri': self.project.config['REDIRECT_URI'],
-    #                          'client_id': self.project.config['CLIENT_ID'], 'scope': '',
-    #                          'client_secret': self.project.config['CLIENT_SECRET'], 'grant_type': 'authorization_code'})
-    #         params = urllib.parse.urlencode(query_string)
-    #         response = Common.webrequest(self.project.config['TOKEN_ENDPOINT'],
-    #                                      {'content-type': 'application/x-www-form-urlencoded;charset=utf-8'},
-    #                                      self.http_intercept, params)
-    #         json_response = json.loads(response)
-    #         self._parse_token(json_response)
-    #     else:
-    #         self._refresh()
-    #
-    #     self.project.save("OAUTH", self.oauth)
-    #     self.project.log("transaction", "Authorization complete", "info", True)
-    #
-    # def _refresh(self):
-    #     query_string = ({'client_secret': self.project.config['CLIENT_SECRET'], 'grant_type': 'refresh_token',
-    #                      'refresh_token': self.oauth['refresh_token'], 'client_id': self.project.config['CLIENT_ID']})
-    #     params = urllib.parse.urlencode(query_string)
-    #     response = Common.webrequest(self.project.config['TOKEN_ENDPOINT'],
-    #                                  {'content-type': 'application/x-www-form-urlencoded;charset=utf-8'},
-    #                                  self.http_intercept, params)
-    #     json_response = json.loads(response)
-    #     self._parse_token(json_response)
 
     def initialize_items(self):
         self.files = []
@@ -173,7 +106,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         pct = 0
         tot_hashes = 0
         with open(verification_file, 'w') as f:
-            f.write("TIME_PROCESSED,REMOTE_FILE,LOCAL_FILE,REMOTE_HASH,LOCAL_HASH,MATCH\r\n")
+            f.write("TIME_PROCESSED,REMOTE_FILE,LOCAL_FILE,REMOTE_HASH,LOCAL_HASH,MATCH\n")
             for item in self.verification:
                 rh = ""
                 match = ""
@@ -192,8 +125,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                 else:
                     rh = "NONE PROVIDED"
                     match = "N/A"
-                d = datetime.now()
-                f.write('"{date}","{rf}","{lf}","{rh}","{lh}","{m}"\r\n'.format(date=str(d),rf=rf,lf=lf,rh=rh,lh=lh,m=match))
+                f.write('"{date}","{rf}","{lf}","{rh}","{lh}","{m}"\n'.format(date=Common.utc_get_datetime_as_string(),rf=rf,lf=lf,rh=rh,lh=lh,m=match))
         pct = ((tot_hashes - errors) / tot_hashes) * 100
         self.project.log("transaction", "Verification of {} items completed with {} errors. ({:.2f}% Success rate)".format(tot_hashes, errors, pct), "highlight", True)
 
@@ -288,21 +220,6 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         delt = d2 - d1
         self.verify()
         self.project.log("transaction", "Acquisition completed in {}".format(str(delt)), "highlight", True)
-
-    # def _save_file(self, data, slip, stream=True):
-    #     Common.check_for_pause(self.project)
-    #     savepath = slip.savepath
-    #     #file_item = slip.item
-    #     path_to_create = os.path.dirname(savepath)  # Just the directory not the filename
-    #     if not os.path.isdir(path_to_create):
-    #         os.makedirs(path_to_create, exist_ok=True)
-    #     # if data:
-    #     self.project.savedata(data, savepath, stream)
-    #     self.project.log("transaction", "Saved file to " + savepath, "info", True)
-    #     # else:
-    #     #     self.project.log("transaction", "Saving metadata to " + savepath, "info", True)
-    #     #     data = json.dumps(file_item, sort_keys=True, indent=4)
-    #     #     self.project.savedata(data, savepath, False)
 
     def _get_parent_mapping(self, i, items):
         # This is the secret sauce
@@ -433,19 +350,3 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
     def _add_items_to_files(self, items):
         for i in items:
             self.files.append(i)
-    #
-    # def _parse_token(self, response):
-    #     self.oauth['access_token'] = response['access_token']
-    #     self.oauth['expires_in'] = response['expires_in']
-    #     expire_time = datetime.utcnow() + timedelta(0, int(self.oauth['expires_in']))
-    #     self.oauth['expire_time'] = str(expire_time.timestamp())
-    #     if 'refresh_token' in response:
-    #         self.oauth['refresh_token'] = response['refresh_token']
-
-    # def http_intercept(self, err):
-    #     if err.code == 401:
-    #         self._authorize()
-    #         return self.get_auth_header()
-    #     else:
-    #         self.project.log("exception", "Error and system does not know how to handle: " + str(err.code), "critical",
-    #                          True)

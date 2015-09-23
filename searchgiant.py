@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(description="Cloud Service forensic imaging too
 parser.add_argument('project_dir', metavar='project_dir', type=str,
                     help="Path where project will be created. If project already exists it will use existing settings")
 parser.add_argument('service', metavar='service_type', type=str,
-                    help="Accepted values: google_drive, dropbox, onedrive")
+                    help="Accepted values: google_drive, dropbox, gmail")
 parser.add_argument('--mode', '-m', metavar='mode', type=str,
                     help="Synchronization mode. Accepted values are: full, metadata. Default value is: full",
                     required=False, default="full")
