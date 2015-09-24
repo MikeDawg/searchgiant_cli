@@ -140,18 +140,12 @@ class OAuth2Provider:
             if err.code == 401:
                 self.authorize()
                 return self.get_auth_header()
-            if err.code == 503:
-                self.project.log("warning", "API Quota reached", "critical", True)
-                # TODO: FIX Behavior with http_error
         elif self.provider == "dropbox":
             if err.code == 401 or err.code == 400:
                 self.authorize()
                 return self.get_auth_header()
-        self.http_error(err)
 
     def get_auth_header(self):
         return {'Authorization': 'Bearer ' + self.oauth['access_token']}
 
-    def http_error(self, err):
-        self.project.log("exception", "HTTP Error: {} - Unhandled".format(err.code), "critical", True)
 

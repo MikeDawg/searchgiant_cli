@@ -4,6 +4,7 @@ from common import Common
 from threading import Thread
 import threading
 import time
+from oi.IO import IO
 
 class DownloadSlip:
 
@@ -39,7 +40,7 @@ class Downloader(Queue):
                     download_thread = True
             if not download_thread:
                 running = False
-            time.sleep(3)
+            time.sleep(0.001)
 
     def start(self):
         for i in range(0, self.threads):
@@ -65,6 +66,10 @@ class Downloader(Queue):
             self.project.log("exception", "{} received shutdown signal. Stopping...".format(threading.current_thread().name), "warning")
         else:
             self.project.log("exception", "{} has completed.".format(threading.current_thread().name), "info")
+
+
+
+
 
 
 

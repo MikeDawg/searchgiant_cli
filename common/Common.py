@@ -99,9 +99,12 @@ def path_normalization(p):
         return path_normalization(p)
     return p.strip()
 
+def pause_project(p):
+    p.pause_signal = 1
+    print(os.linesep)
+
 
 def webrequest(url, headers, http_intercept, data=None, binary=False, return_req=False):
-    print(url)
     try:
         headers['user-agent'] = "searchgiant forensic cli"
         if data is None:
@@ -127,6 +130,8 @@ def webrequest(url, headers, http_intercept, data=None, binary=False, return_req
         new_headers = http_intercept(err)
         if new_headers:
             return webrequest(url, new_headers, http_intercept, data, binary, return_req)
+        else:
+            raise
 
 def sizeof_fmt(num, suffix='B'):
     for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
