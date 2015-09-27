@@ -144,6 +144,9 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         self.project.log("transaction", "Total items queued for acquisition: " + str(cnt), "info", True)
         self.metadata()
 
+        trash_folder = os.path.join(self.project.acquisition_dir, "trash")
+        trash_metadata_folder = os.path.join(self.project.acquisition_dir, "trash_metadata")
+
         for file in self.files:
             self.project.log("transaction", "Calculating " + file['title'], "info", True)
             download_uri = self._get_download_url(file)
@@ -155,8 +158,10 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                                      True)
 
             if file['labels']['trashed'] == True:
-                save_download_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["trash"], parentmap), filetitle))
-                save_metadata_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["trash_metadata"], parentmap), filetitle + ".json"))
+                save_download_path = os.path.join(trash_folder, parentmap)
+                save_metadata_path = os.path.join(trash_metadata_folder, parentmap)
+                save_download_path = os.path.normpath(os.path.join(save_download_path, filetitle))
+                save_metadata_path = os.path.normpath(os.path.join(save_metadata_path, filetitle + '.json'))
             else:
                 save_download_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["data"], parentmap), filetitle))
                 save_metadata_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["metadata"], parentmap), filetitle + ".json"))

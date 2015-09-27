@@ -79,6 +79,10 @@ class GMail(OnlineStorage.OnlineStorage):
         self.meta_downloader.start()
         self.meta_downloader.wait_for_complete()
 
+        d2 = datetime.now()
+        delt = d2 - d1
+        self.project.log("transaction", "Acquisition completed in {}".format(str(delt)), "highlight", True)
+
     def _save_metadata(self, data, slip):
         data = data.read().decode('utf-8')
         thread = json.loads(data)
@@ -89,11 +93,14 @@ class GMail(OnlineStorage.OnlineStorage):
                 message_dir = os.path.join(thread_dir, message['id'])
                 msg_metadata_path = os.path.join(message_dir, message['id'] + ".json")
                 msg_metadata_path = Common.assert_path(msg_metadata_path, self.project)
+                # Save metadata of each message individually, inside label/thread/message directory
                 if msg_metadata_path:
                     os.makedirs(message_dir, exist_ok=True)
                     self.project.savedata(json.dumps(message, sort_keys=True, indent=4), msg_metadata_path, False)
                     self.project.log("transaction", "Saving metadata to {}".format(msg_metadata_path), "info", True)
                 thread_metadata_path = os.path.join(thread_dir, thread['id'] + ".json")
+
+                # Save metadata of each thread individually inside label/thread directory
                 thread_metadata_path = Common.assert_path(thread_metadata_path, self.project)
                 if thread_metadata_path:
                     os.makedirs(thread_dir, exist_ok=True)

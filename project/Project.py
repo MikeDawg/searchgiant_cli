@@ -72,8 +72,8 @@ class Project:
         self.project_folders["data"] = os.path.join(self.acquisition_dir, "data")
         self.project_folders["logs"] = os.path.join(self.working_dir, "logs")
         self.project_folders["metadata"] = os.path.join(self.acquisition_dir, "metadata")
-        self.project_folders["trash"] = os.path.join(self.acquisition_dir, "trash")
-        self.project_folders["trash_metadata"] = os.path.join(self.acquisition_dir, "trash_metadata")
+        #self.project_folders["trash"] = os.path.join(self.acquisition_dir, "trash")
+        #self.project_folders["trash_metadata"] = os.path.join(self.acquisition_dir, "trash_metadata")
 
         self.config_file = os.path.join(self.working_dir, "config.cfg")
 

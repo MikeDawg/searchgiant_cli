@@ -65,7 +65,7 @@ class Downloader(Queue):
         if self.project.shutdown_signal:
             self.project.log("exception", "{} received shutdown signal. Stopping...".format(threading.current_thread().name), "warning")
         else:
-            self.project.log("exception", "{} has completed.".format(threading.current_thread().name), "info")
+            self.project.log("transaction", "{} has completed.".format(threading.current_thread().name), "info")
 
 
 
