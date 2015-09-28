@@ -1,13 +1,15 @@
 __author__ = 'aurcioli'
-from onlinestorage import OnlineStorage
-from common import Common
 import json
 import urllib.parse
-from datetime import datetime, timedelta
-from downloader import Downloader
+from datetime import datetime
 import os
+
+from onlinestorage import OnlineStorage
+from common import Common
+from downloader import Downloader
 from oi.IO import IO
 from oauth2providers import OAuth2Providers
+
 
 # TODO: Needs to download folder metadata too
 class Dropbox(OnlineStorage.OnlineStorage):
@@ -44,8 +46,6 @@ class Dropbox(OnlineStorage.OnlineStorage):
         cnt = len(self.files)
 
         self.project.log("transaction", "Total items queued for acquisition: " + str(cnt), "info", True)
-        with open("files.json",'w') as f:
-            f.write(json.dumps(self.files, sort_keys=True, indent=4))
         self.metadata()
         self.verification = []
         # TODO: Metadata is not full

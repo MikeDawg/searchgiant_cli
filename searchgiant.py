@@ -1,36 +1,17 @@
 __author__ = 'aurcioli'
 
-import sys, traceback, os
+import sys
+import traceback
+import os
 import argparse
-from project import Project
-from oi import IO
-from common import Common
 import threading
 import time
 import urllib.error
 import http.client
-import signal
 
-# def exit_program(signum, frame):
-#     signal.signal(signal.SIGINT, original_sigint)
-#     try:
-#         IO.IO.put("Ctrl+C or other interrupt caught.", "critical")
-#         shutdown = IO.IO.get("Are you sure you want to cancel? [Y/n]")
-#         result = Common.dialog_result(shutdown)
-#         if result:
-#             P.pause_signal = 0
-#             P.shutdown_signal = 1
-#             while threading.active_count() > 1:
-#                 for t in threading.enumerate():
-#                     IO.IO.put("Active: {}".format(t.name))
-#                 IO.IO.put("Waiting for all threads to shutdown gracefully...({} remaining)".format(threading.active_count()), "warning")
-#                 time.sleep(0.001)
-#
-#     except KeyboardInterrupt:
-#         IO.IO.put("Quitting...")
-#         sys.exit(1)
-#
-#     signal.signal(signal.SIGINT, exit_program)
+from project import Project
+from oi import IO
+from common import Common
 
 if __name__ == '__main__':
     # original_sigint = signal.getsignal(signal.SIGINT)
@@ -82,35 +63,3 @@ if __name__ == '__main__':
         traceback.print_stack(f=sys.stderr)
 
 
-# try:
-#     P.start()
-# except KeyboardInterrupt:
-#     P.pause_signal = 1
-#     print(os.linesep)
-#     IO.IO.put("Ctrl+C or other interrupt caught.", "critical")
-#     shutdown = IO.IO.get("Are you sure you want to cancel? [Y/n]")
-#     result = Common.dialog_result(shutdown)
-#     if result:
-#         P.pause_signal = 0
-#         P.shutdown_signal = 1
-#         while threading.active_count() > 1:
-#             for t in threading.enumerate():
-#                 IO.IO.put("Active: {}".format(t.name))
-#             IO.IO.put("Waiting for all threads to shutdown gracefully...({} remaining)".format(threading.active_count()), "warning")
-#             time.sleep(3)
-#     else:
-#         P.pause_signal = 0
-#
-#
-# except urllib.error.HTTPError as err:
-#     P.log("exception", "HTTP ERROR {} - Response from server:\n{}".format(err.code, err.read().decode('utf-8')), "critical", True)
-#
-#
-# except http.client.IncompleteRead:
-#     # TODO : Finish
-#     pass
-#
-# except Exception as err:
-#     print(str(err), sys.stderr)
-#     traceback.print_stack(f=sys.stderr)
-#

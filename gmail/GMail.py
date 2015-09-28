@@ -1,19 +1,18 @@
 __author__ = 'aurcioli'
 __author__ = 'aurcioli'
-from onlinestorage import OnlineStorage
-from common import Common
 import json
-from datetime import datetime, timedelta
-from downloader import Downloader
+from datetime import datetime
 import os
-from oi.IO import IO
-from oauth2providers import OAuth2Providers
 import base64
 import mailbox
 import email
-from io import StringIO
 
-
+from onlinestorage import OnlineStorage
+from common import Common
+from downloader import Downloader
+from oi.IO import IO
+from oauth2providers import OAuth2Providers
+import time
 
 class GMail(OnlineStorage.OnlineStorage):
     threads = []
@@ -38,8 +37,8 @@ class GMail(OnlineStorage.OnlineStorage):
         d1 = datetime.now()
         self.d = Downloader.Downloader
         self.content_downloader = Downloader.Downloader
-
         self.meta_downloader = Downloader.Downloader(self.project, self.oauth_provider.http_intercept, self._save_metadata, self.oauth_provider.get_auth_header, self.project.threads)
+
         if self.project.args.mode == "full":
             self.project.log("transaction", "Full acquisition initiated", "info", True)
             self.d = Downloader.Downloader(self.project, self.oauth_provider.http_intercept, self._redirect_messages_to_save, self.oauth_provider.get_auth_header, self.project.threads)
@@ -86,6 +85,7 @@ class GMail(OnlineStorage.OnlineStorage):
     def _save_metadata(self, data, slip):
         data = data.read().decode('utf-8')
         thread = json.loads(data)
+        f = open(self.metadata_file, 'ab')
         for message in thread['messages']:
             for label in message['labelIds']:
                 label_dir = os.path.join(self.project.project_folders['metadata'], label)
@@ -106,6 +106,23 @@ class GMail(OnlineStorage.OnlineStorage):
                     os.makedirs(thread_dir, exist_ok=True)
                     self.project.savedata(json.dumps(thread, sort_keys=True, indent=4), thread_metadata_path, False)
                     self.project.log("transaction", "Saving metadata to {}".format(thread_metadata_path), "info", True)
+            headers = message['payload']['headers']
+            label_list = ",".join(message['labelIds'])
+            internal_date = message['internalDate']
+            internal_date = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(int(internal_date) / 1000))
+            header_date = 'N/A' if not self.extract_header_value(headers, 'Date') else self.extract_header_value(headers, 'Date')
+            header_to = 'N/A' if not self.extract_header_value(headers, 'To') else self.extract_header_value(headers, 'To')
+            header_from = 'N/A' if not self.extract_header_value(headers, 'From') else self.extract_header_value(headers, 'From')
+            header_subject = 'N/A' if not self.extract_header_value(headers, 'Subject') else self.extract_header_value(headers, 'Subject')
+            snippet = message['snippet']
+            thread_id = thread['id']
+            f.write('"{id}","{internaldate}","{labels}","{headerdate}","{to}","{xfrom}","{subject}","{snippet}","{threadid}"{sep}'.format(id=message['id'],internaldate=internal_date,labels=label_list,headerdate=header_date,to=header_to,xfrom=header_from,subject=header_subject,snippet=snippet,threadid=thread_id,sep=os.linesep).encode('utf-8'))
+        f.close()
+
+    def extract_header_value(self, l, name):
+        for kv in l:
+            if kv['name'] == name:
+                return kv['value']
 
     def _save_raw_mail(self, data, slip):
         data = data.read().decode('utf-8')
@@ -165,7 +182,10 @@ class GMail(OnlineStorage.OnlineStorage):
         return m_uri
 
     def metadata(self):
-        pass
+        msg_list_path = os.path.join(self.project.working_dir, Common.timely_filename("message_list",".csv"))
+        with open(msg_list_path, 'w') as f:
+            f.write("id,internalDate,labels,headerDate,To,From,Subject,snippet,threadId\n")
+        self.metadata_file = msg_list_path
 
     def initialize_items(self):
         self.threads = []

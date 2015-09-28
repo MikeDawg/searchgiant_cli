@@ -1,10 +1,11 @@
 __author__ = 'alexander'
 from queue import Queue
-from common import Common
 from threading import Thread
 import threading
 import time
-from oi.IO import IO
+
+from common import Common
+
 
 class DownloadSlip:
 

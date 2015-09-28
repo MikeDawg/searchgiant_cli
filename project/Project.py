@@ -18,15 +18,16 @@ __author__ = 'alexander'
 import os
 import logging
 from logging import FileHandler
-from config import ConfigLoader
-from oi.IO import IO
 import time
 import shutil
+import http.client
+
+from config import ConfigLoader
+from oi.IO import IO
 from onlinestorage import OnlineStorage
 from googledrive import GoogleDrive
 from dropbox import Dropbox
 from gmail import GMail
-import http.client
 
 
 class DefaultConfigs:

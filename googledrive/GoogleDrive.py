@@ -1,12 +1,14 @@
-from onlinestorage import OnlineStorage
-from common import Common
 import json
-from datetime import datetime, timedelta
-from downloader import Downloader
+from datetime import datetime
 import os
 import hashlib
+
+from onlinestorage import OnlineStorage
+from common import Common
+from downloader import Downloader
 from oi.IO import IO
 from oauth2providers import OAuth2Providers
+
 
 class GoogleDrive(OnlineStorage.OnlineStorage):
     files = []
@@ -43,7 +45,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
 
         columns = ("id,title,fileExtension,fileSize,createdDate,modifiedDate,modifiedByMeDate,md5Checksum,"
                    "kind,version,parents,restricted,hidden,trashed,starred,viewed,markedViewedByMeDate,lastViewedByMeDate,"
-                   "lastModifyingUserName,writersCanShare,sharedWithMeDate,sharingUser,sharingUserEmail,ownerNames\n")
+                   "lastModifyingUserName,writersCanShare,sharedWithMeDate,sharingUser,sharingUserEmail,ownerNames{}\n")
 
         f.write(columns)
         for i in self.files:
@@ -95,8 +97,8 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             for r in row2:
                 rowStr = rowStr + str(r) + ","
             rowStr = rowStr[:len(rowStr) - 1]
-            f.write(rowStr + "\n")
-            #columns = columns + rowStr + "\n"
+            f.write(rowStr + '\n')
+
         f.close()
 
     def verify(self):
