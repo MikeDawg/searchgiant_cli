@@ -191,13 +191,6 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                                 self.project.log("exception", "Local and remote hash differs for " + file[
                                     'title'] + " ... Queuing for download", "critical", True)
 
-                                # # # TODO : DEBUG - This is how I caught all edge cases regarding multiple versioned files
-                                #     TODO: And other google drive oddities
-                                # print("FileHash=" + file_hash)
-                                # print("Remote=" + file['md5Checksum'])
-                                # print("ParentMapping=" + parentmap)
-                                # print("DLPath=" + save_download_path)
-                                # input()
 
                         else:
                             self.project.log("exception", "No hash information for file ' " + file['title'] + "'", "warning", True)

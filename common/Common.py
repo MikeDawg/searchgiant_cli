@@ -6,7 +6,15 @@ import time
 import os
 import sys
 import datetime
+from oi.IO import IO
+import webbrowser
 
+def launch_browser(url):
+    IO.put("Attempting to launch {} in a browser.".format(url))
+    try:
+        webbrowser.open(url)
+    except:
+        IO.put("Please visit the following URL to continue: {}".format(url))
 
 def assert_path(p, project):
     p = os.path.abspath(p)

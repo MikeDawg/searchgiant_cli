@@ -1,8 +1,6 @@
 __author__ = 'aurcioli'
 import json
 import urllib.parse
-import webbrowser
-
 from common import Common
 from oi.IO import IO
 
@@ -30,11 +28,11 @@ class OAuth2Provider:
         }
     }
 
-
     provider = ""
     oauth = {"access_token": "",
               "refresh_token": "",
               "expires_in:": 0}
+
     def __init__(self, app, provider, key_to_the_kingdom):
         self.app = app
         self.provider = provider
@@ -59,10 +57,7 @@ class OAuth2Provider:
                 IO.put("Please visit {}".format(self.config["OAUTH_DASHBOARD"]))
                 IO.put("& Create an OAUTH 2 API Application")
 
-                try:
-                    webbrowser.open(self.config["OAUTH_DASHBOARD"])
-                except:
-                    IO.put("Please visit this URL: {}".format(self.config["OAUTH_DASHBOARD"]))
+                Common.launch_browser(self.config['OAUTH_DASHBOARD'])
 
                 client_id = IO.get("{}:".format(self.config["CLIENT_ID_ALIAS"]))
                 client_secret = IO.get("{}:".format(self.config["CLIENT_SECRET_ALIAS"]))
@@ -82,7 +77,7 @@ class OAuth2Provider:
             self.refresh(self.project.config['CLIENT_ID'], self.project.config['CLIENT_SECRET'])
 
         self.project.save("OAUTH", self.oauth)
-        self.project.log("transaction","Authorization completed", "info", True)
+        self.project.log("transaction", "Authorization completed", "info", True)
 
     def refresh(self, client_id, client_secret):
         if self.provider == "google":
@@ -95,7 +90,7 @@ class OAuth2Provider:
             json_response = json.loads(response)
             self.parse_token(json_response)
         else:
-            self.project.log("exception","WARNING - Authorization is being rejected by host API.", "critical", True)
+            self.project.log("exception", "WARNING - Authorization is being rejected by host API.", "critical", True)
 
     def get_access_token(self, client_id, client_secret):
         response_type = 'code'
@@ -110,10 +105,8 @@ class OAuth2Provider:
 
         params = urllib.parse.urlencode(query_string)
         step1 = self.config['OAUTH_ENDPOINT'] + '?' + params
-        try:
-            webbrowser.open(step1)
-        except:
-            IO.put("Please visit this URL in your browser to continue authorization:\n{}".format(step1))
+
+        Common.launch_browser(step1)
 
         code = IO.get("Authorization Code:")
         query_string = ({'code': code, 'grant_type': 'authorization_code', 'client_id': client_id, 'client_secret': client_secret})
