@@ -32,8 +32,8 @@ optional arguments:
 ```
 
 #### Screenshots
-![Main](http://imgur.com/GE8lQR6)
+![Main](http://imgur.com/GE8lQR6.png)
 
-![Gmail](http://imgur.com/YH8c35F)
+![Gmail](http://imgur.com/YH8c35F.png)
 
-![GDrive](http://imgur.com/AywmmgZ)
+![GDrive](http://imgur.com/AywmmgZ.png)
