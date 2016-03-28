@@ -1,6 +1,6 @@
 import types
 
-# I stole this concept from Flask :) Fuck ConfigParser. This is the way to go.
+# I stole this concept from Flask :) 
 
 class ConfigLoader(dict):
     def __init__(self, defaults=None):

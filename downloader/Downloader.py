@@ -3,6 +3,7 @@ from queue import Queue
 from threading import Thread
 import threading
 import time
+import urllib
 
 from common import Common
 
@@ -61,8 +62,11 @@ class Downloader(Queue):
                 file_url = slip.url
             t.name = 'Downloading: ' + slip.item[slip.filename_key]
             self.project.log("transaction", "Downloading " + slip.item[slip.filename_key], "info", True)
-            data = Common.webrequest(file_url, self.headers(), self.http_callback, None, False, True) # Response object gets passed to shutil.copyfileobj
-            self.storage_callback(data, slip)
+            try:
+                data = Common.webrequest(file_url, self.headers(), self.http_callback, None, False, True) # Response object gets passed to shutil.copyfileobj
+                self.storage_callback(data, slip)
+            except urllib.error.HTTPError as err:
+                self.project.log("exception", "{} failed to download - HTTPError {}".format(slip.item[slip.filename_key], err.code), "warning")
         if self.project.shutdown_signal:
             self.project.log("exception", "{} received shutdown signal. Stopping...".format(threading.current_thread().name), "warning")
         else:

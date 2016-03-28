@@ -29,48 +29,65 @@ class Dropbox(OnlineStorage.OnlineStorage):
         super(Dropbox, self).__init__(self, project.name)
 
     def metadata(self):
-        pass
+        file_list_path = os.path.join(self.project.working_dir, Common.timely_filename("file_list",".csv"))
+        with open(file_list_path, 'w') as csv:
+            csv.write("filename,bytes,size,revision,modified,mimeType,isDir,root,clientmTime\n")
+            for f in self.files:
+                row = []
+                row.append('None' if 'path' not in f else repr(f['path']))
+                row.append('0' if 'bytes' not in f else repr(f['bytes']))
+                row.append('None' if 'size' not in f else repr(f['size']))
+                row.append('None' if 'revision' not in f else repr(f['revision']))
+                row.append('None' if 'modified' not in f else repr(f['modified']))
+                row.append('None' if 'mime_type' not in f else repr(f['mime_type']))
+                row.append('None' if 'is_dir' not in f else repr(f['is_dir']))
+                row.append('None' if 'root' not in f else repr(f['root']))
+                row.append('None' if 'client_mtime' not in f else repr(f['client_mtime']))
+                csv.write(','.join('"' + item + '"' for item in row) + "\n")
+        csv.close()
 
     def verify(self):
         pass
 
     def sync(self):
         d1 = datetime.now()
-        d = Downloader.Downloader
+        d = Downloader.Downloader(self.project, self.oauth_provider.http_intercept, self._save_file, self.oauth_provider.get_auth_header, self.project.threads)
         if self.project.args.mode == "full":
             self.project.log("transaction", "Full acquisition initiated", "info", True)
-            d = Downloader.Downloader(self.project, self.oauth_provider.http_intercept, self._save_file, self.oauth_provider.get_auth_header, self.project.threads)
         else:
             self.project.log("transaction", "Metadata acquisition initiated", "info", True)
+
         self.initialize_items()
         cnt = len(self.files)
 
         self.project.log("transaction", "Total items queued for acquisition: " + str(cnt), "info", True)
         self.metadata()
-        self.verification = []
-        # TODO: Metadata is not full
-        # TODO: Original file listing (/delta) does not return folder hashes
-        # TODO: or deleted files
-        for file in self.files:
 
+        for file in self.files:
             self.project.log("transaction", "Calculating " + file['path'], "info", True)
+
             if file['is_dir'] == False:
                 download_uri = lambda f=file: self._get_download_uri(f)
+                metadata_download_uri = self.oauth_provider.config['API_ENDPOINT'] + '/metadata/auto' + file['path']
                 parentmap = self._get_parent_mapping(file)
                 filetitle = self._get_file_name(file)
                 orig = os.path.basename(file['path'])
                 if filetitle != orig:
                     self.project.log("exception", "Normalized '{}' to '{}'".format(orig, filetitle), "warning", True)
 
-                save_download_path = Common.assert_path(os.path.normpath(os.path.join(os.path.join(self.project.project_folders['data'], parentmap), filetitle)), self.project)
+                if 'bytes' in file:
+                    self.file_size_bytes += int(file['bytes'])
+
+                save_metadata_path = Common.assert_path(os.path.normpath(os.path.join(os.path.join(self.project.project_folders['metadata'], parentmap), filetitle + ".json")), self.project)
+                if save_metadata_path:
+                    self.project.log("transaction", "Queueing {} for download...".format(orig), "info", True)
+                    d.put(Downloader.DownloadSlip(metadata_download_uri, file, save_metadata_path, 'path'))
+
                 if self.project.args.mode == "full":
+                    save_download_path = Common.assert_path(os.path.normpath(os.path.join(os.path.join(self.project.project_folders['data'], parentmap), filetitle)), self.project)
                     if save_download_path:
                         self.project.log("transaction", "Queueing {} for download...".format(orig), "info", True)
                         d.put(Downloader.DownloadSlip(download_uri, file, save_download_path, 'path'))
-                        if 'bytes' in file:
-                            self.file_size_bytes += int(file['bytes'])
-            else:
-                verification = {}
 
         self.project.log("transaction", "Total size of files to be acquired is {}".format(Common.sizeof_fmt(self.file_size_bytes, "B")), "highlight", True)
         if self.project.args.prompt:
@@ -80,7 +97,7 @@ class Dropbox(OnlineStorage.OnlineStorage):
         d.wait_for_complete()
         d2 = datetime.now()
         delt = d2 - d1
-        self.verify()
+
         self.project.log("transaction", "Acquisition completed in {}".format(str(delt)), "highlight", True)
 
     def _get_parent_mapping(self, file):
@@ -99,28 +116,6 @@ class Dropbox(OnlineStorage.OnlineStorage):
             return json_response['url']
         else:
             return None
-
-    def account_info(self):
-        # TODO: Implement for this and GoogleDrive
-        pass
-
-    # def _save_file(self, data, slip):
-    #     # TODO : Where else to put this vvv checkforpause
-    #     Common.check_for_pause(self.project)
-    #     savepath = slip.savepath
-    #     file_item = slip.item
-    #     path_to_create = os.path.dirname(savepath)
-    #     if not os.path.isdir(path_to_create):
-    #         os.makedirs(path_to_create, exist_ok=True)
-    #     if data:
-    #         self.project.savedata(data, savepath)
-    #         self.project.log("transaction", "Saved file to " + savepath, "info", True)
-    #     else:
-    #         self.project.log("transaction", "Saving metadata to " + savepath, "info", True)
-    #         data = json.dumps(file_item, sort_keys=True, indent=4)
-    #         self.project.savedata(data, savepath, False)
-    #
-    #     pass
 
     def initialize_items(self):
         self.files = []
@@ -141,14 +136,3 @@ class Dropbox(OnlineStorage.OnlineStorage):
             self.files.append(item[1])
         if has_more:
             self._build_fs(link, cursor)
-    #
-    # def http_intercept(self, err):
-    #     if err.code == 401 or err.code == 400:
-    #         self._authorize()
-    #         return self.get_auth_header()
-    #     else:
-    #         self.project.log("exception", "Error and system does not know how to handle: " + str(err.code), "critical",
-    #                          True)
-    #
-    # def get_auth_header(self):
-    #     return {'Authorization': 'Bearer ' + self.oauth['access_token']}
