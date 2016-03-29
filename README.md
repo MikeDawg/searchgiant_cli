@@ -9,6 +9,15 @@ This program was designed for my Applied Research Project at John Jay University
 
 I do plan on adding more providers when I get more time to work on it.
 
+#### Installation
+Since I wrote this with the intention of not relying on any third party dependencies in order to be as portable as possible, there is no installation required.
+
+Simply run 
+
+```bash
+python3 searchgiant.py
+```
+
 #### Basic Usage
 ```
 usage: searchgiant.py [-h] [--mode mode] [--threads threads] [--prompt]
