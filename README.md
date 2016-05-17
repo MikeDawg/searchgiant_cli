@@ -7,7 +7,10 @@ This program was designed for my Applied Research Project at John Jay University
 * GMail
 * Dropbox
 
-I do plan on adding more providers when I get more time to work on it.
+I do plan on adding more providers when I get more time to work on it. I know there is a lot of room for improvement in the codebase.
+
+#### Idealogy
+I wanted to develop something open source and highly portable, which was my main reason for not making use of any exisitng libraries for accessing the API's. The second reason was simply to learn .
 
 #### Installation
 Since I wrote this with the intention of not relying on any third party dependencies in order to be as portable as possible, there is no installation required.
