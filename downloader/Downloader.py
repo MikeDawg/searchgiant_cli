@@ -11,11 +11,12 @@ from common import Common
 
 class DownloadSlip:
 
-    def __init__(self, url, item, savepath, fname_key):
+    def __init__(self, url, item, savepath, fname_key, retry = False):
         self.url = url
         self.item = item
         self.savepath = savepath
         self.filename_key = fname_key
+        self.retry = retry
 
 class Downloader(Queue):
 
@@ -31,6 +32,7 @@ class Downloader(Queue):
         self.threads = threads
         self.http_callback = http_callback
         self.finished_queuing = False
+        self.failures = []
         super(Downloader, self).__init__()
 
     def wait_for_complete(self):
@@ -72,7 +74,12 @@ class Downloader(Queue):
                     data = Common.webrequest(file_url, self.headers(), self.http_callback, None, False, True) # Response object gets passed to shutil.copyfileobj
                     self.storage_callback(data, slip)
                 except urllib.error.HTTPError as err:
-                    self.project.log("exception", "{} failed to download - HTTPError {}".format(slip.item[slip.filename_key], err.code), "warning")
+                    if not slip.retry:
+                        slip.retry = True
+                        self.put(slip)
+                    else:
+                        self.project.log("exception", "{} failed to download - HTTPError {}".format(slip.item[slip.filename_key], err.code), "error", True)
+                        self.failures.append({"slip": slip, "error": err})
             except queue.Empty:
                 pass
 

@@ -27,6 +27,9 @@ if __name__ == '__main__':
                         required=False, default="full")
     parser.add_argument('--threads', '-t', metavar='threads', type=int,
                         help="Amount of parallel threads used to download files", default=5)
+    parser.add_argument('--include-revisions', '-i', metavar='include_revisions', type=bool,
+                        help="When this argument is present, download all available historical copies of a file (significantly increases sync time)",
+                        required=False, default=False)
 
     args = parser.parse_args()
 

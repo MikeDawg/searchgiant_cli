@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 import os
 import hashlib
-
+import urllib
 from onlinestorage import OnlineStorage
 from common import Common
 from downloader import Downloader
@@ -110,12 +110,14 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
         with open(verification_file, 'w') as f:
             f.write("TIME_PROCESSED,REMOTE_FILE,LOCAL_FILE,REMOTE_HASH,LOCAL_HASH,MATCH\n")
             for item in self.verification:
-                rh = ""
-                match = ""
-                lh = Common.hashfile(open(item['local_file'], 'rb'), hashlib.md5())
                 lf = item['local_file']
                 rf = item['remote_file']
-                if 'remote_hash' in item:
+                rh = ""
+                lh = ""
+                match = ""
+                lf_exists = os.path.isfile(lf)
+                if lf_exists and 'remote_hash' in item:
+                    lh = Common.hashfile(open(lf, 'rb'), hashlib.md5())
                     tot_hashes += 1
                     rh = item['remote_hash']
                     if lh == item['remote_hash']:
@@ -124,100 +126,116 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
                         match = "NO"
                         errors += 1
                         self.project.log("exception", "Verification failed for remote file {} and local file {}".format(rf,lf), "critical", True)
+                # elif lf_exists and 'fileSize' in item:
+                #     tot_hashes = tot_hashes + 1
+                #     remote_bytes = item['fileSize']
+                #     local_bytes = os.path.getsize(lf)
+                #     rh = "{} bytes".format(remote_bytes)
+                #     lh = "{} bytes".format(local_bytes)
+                #     if remote_bytes == local_bytes:
+                #         match = "YES"
+                #     else:
+                #         match = "NO"
+                #         errors += 1
+                #         self.project.log("exception",
+                #                          "Verification failed for remote file {} and local file {}".format(rf, lf),
+                #                          "critical", True)
                 else:
-                    rh = "NONE PROVIDED"
+                    rh = "(Remote hash unavailable)" if lf_exists else "(Local file not found)"
+                    if not lf_exists: errors = errors + 1
                     match = "N/A"
                 f.write('"{date}","{rf}","{lf}","{rh}","{lh}","{m}"\n'.format(date=Common.utc_get_datetime_as_string(),rf=rf,lf=lf,rh=rh,lh=lh,m=match))
         pct = ((tot_hashes - errors) / tot_hashes) * 100
-        self.project.log("transaction", "Verification of {} items completed with {} errors. ({:.2f}% Success rate)".format(tot_hashes, errors, pct), "highlight", True)
+        self.project.log("transaction", "Verification of {} hashes completed with {} errors. ({:.2f}% Success rate)".format(tot_hashes, errors, pct), "highlight", True)
 
     def sync(self):
         d1 = datetime.now()
-        content_downloader = Downloader.Downloader
+        self.filecount = 0
+        self.content_downloader = Downloader.Downloader
 
         if self.project.args.mode == "full":
             self.project.log("transaction", "Full acquisition initiated", "info", True)
-            content_downloader = Downloader.Downloader(self.project, self.oauth_provider.http_intercept, self._save_file, self.oauth_provider.get_auth_header,
+            self.content_downloader = Downloader.Downloader(self.project, self.oauth_provider.http_intercept, self._save_file, self.oauth_provider.get_auth_header,
                                   self.project.threads)
         else:
             self.project.log("transaction", "Metadata acquisition initiated", "info", True)
 
-        content_downloader.start()
+        self.content_downloader.start()
         self.initialize_items()
-        cnt = len(self.files)
-        self.project.log("transaction", "Total items queued for acquisition: " + str(cnt), "info", True)
+        # cnt = len(self.files)
+        # self.project.log("transaction", "Total items queued for acquisition: " + str(cnt), "info", True)
         self.metadata()
 
-        trash_folder = os.path.join(self.project.acquisition_dir, "trash")
-        trash_metadata_folder = os.path.join(self.project.acquisition_dir, "trash_metadata")
+        # trash_folder = os.path.join(self.project.acquisition_dir, "trash")
+        # trash_metadata_folder = os.path.join(self.project.acquisition_dir, "trash_metadata")
 
-        for file in self.files:
-            self.project.log("transaction", "Calculating " + file['title'], "info", True)
-            download_uri = self._get_download_url(file)
-            parentmap = self._get_parent_mapping(file, self.files)
+        #for file in self.files:
+            # self.project.log("transaction", "Calculating " + file['title'], "info", True)
+            # download_uri = self._get_download_url(file)
+            # parentmap = self._get_parent_mapping(file, self.files)
+            #
+            # filetitle = self._get_file_name(file)
+            # if filetitle != file['title']:
+            #         self.project.log("exception", "Normalized '" + file['title'] + "' to '" + filetitle + "'", "warning",
+            #                          True)
+            #
+            # if file['labels']['trashed'] == True:
+            #     save_download_path = os.path.join(trash_folder, parentmap)
+            #     save_metadata_path = os.path.join(trash_metadata_folder, parentmap)
+            #     save_download_path = os.path.normpath(os.path.join(save_download_path, filetitle))
+            #     save_metadata_path = os.path.normpath(os.path.join(save_metadata_path, filetitle + '.json'))
+            # else:
+            #     save_download_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["data"], parentmap), filetitle))
+            #     save_metadata_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["metadata"], parentmap), filetitle + ".json"))
+            #
+            # save_download_path = Common.assert_path(save_download_path, self.project)
+            # save_metadata_path = Common.assert_path(save_metadata_path, self.project)
+            #
+            # if self.project.args.mode == "full":
+            #     if save_download_path:
+            #         v = {"remote_file": os.path.join(parentmap, file['title']),
+            #              "local_file": save_download_path}
+            #
+            #         download_file = True
+            #         if 'md5Checksum' in file:
+            #             v['remote_hash'] = file['md5Checksum']
+            #
+            #         if os.path.isfile(save_download_path):
+            #             if 'md5Checksum' in file:
+            #                 file_hash = Common.hashfile(open(save_download_path, 'rb'), hashlib.md5())
+            #                 if file_hash == file['md5Checksum']:
+            #                     download_file = False
+            #                     self.project.log("exception", "Local and remote hash matches for " + file[
+            #                         'title'] + " ... Skipping download", "warning", True)
+            #                 else:
+            #                     self.project.log("exception", "Local and remote hash differs for " + file[
+            #                         'title'] + " ... Queuing for download", "critical", True)
+            #
+            #
+            #             else:
+            #                 self.project.log("exception", "No hash information for file ' " + file['title'] + "'", "warning", True)
+            #
+            #         if download_file and download_uri:
+            #             self.project.log("transaction", "Queueing " + file['title'] + " for download...", "info", True)
+            #             content_downloader.put(Downloader.DownloadSlip(download_uri, file, save_download_path, 'title'))
+            #             if 'fileSize' in file:
+            #                 self.file_size_bytes += int(file['fileSize'])
+            #
+            #         # If it's a file we can add it to verification file
+            #         if download_uri:
+            #             self.verification.append(v)
+            #
+            # if save_metadata_path:
+            #     self._save_file(json.dumps(file, sort_keys=True, indent=4), Downloader.DownloadSlip(download_uri, file, save_metadata_path, 'title'), False)
 
-            filetitle = self._get_file_name(file)
-            if filetitle != file['title']:
-                    self.project.log("exception", "Normalized '" + file['title'] + "' to '" + filetitle + "'", "warning",
-                                     True)
+        self.content_downloader.finished_queuing = True
 
-            if file['labels']['trashed'] == True:
-                save_download_path = os.path.join(trash_folder, parentmap)
-                save_metadata_path = os.path.join(trash_metadata_folder, parentmap)
-                save_download_path = os.path.normpath(os.path.join(save_download_path, filetitle))
-                save_metadata_path = os.path.normpath(os.path.join(save_metadata_path, filetitle + '.json'))
-            else:
-                save_download_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["data"], parentmap), filetitle))
-                save_metadata_path = os.path.normpath(os.path.join(os.path.join(self.project.project_folders["metadata"], parentmap), filetitle + ".json"))
-
-            save_download_path = Common.assert_path(save_download_path, self.project)
-            save_metadata_path = Common.assert_path(save_metadata_path, self.project)
-
-            if self.project.args.mode == "full":
-                if save_download_path:
-                    v = {"remote_file": os.path.join(parentmap, file['title']),
-                         "local_file": save_download_path}
-
-                    download_file = True
-                    if 'md5Checksum' in file:
-                        v['remote_hash'] = file['md5Checksum']
-
-                    if os.path.isfile(save_download_path):
-                        if 'md5Checksum' in file:
-                            file_hash = Common.hashfile(open(save_download_path, 'rb'), hashlib.md5())
-                            if file_hash == file['md5Checksum']:
-                                download_file = False
-                                self.project.log("exception", "Local and remote hash matches for " + file[
-                                    'title'] + " ... Skipping download", "warning", True)
-                            else:
-                                self.project.log("exception", "Local and remote hash differs for " + file[
-                                    'title'] + " ... Queuing for download", "critical", True)
-
-
-                        else:
-                            self.project.log("exception", "No hash information for file ' " + file['title'] + "'", "warning", True)
-
-                    if download_file and download_uri:
-                        self.project.log("transaction", "Queueing " + file['title'] + " for download...", "info", True)
-                        content_downloader.put(Downloader.DownloadSlip(download_uri, file, save_download_path, 'title'))
-                        if 'fileSize' in file:
-                            self.file_size_bytes += int(file['fileSize'])
-
-                    # If it's a file we can add it to verification file
-                    if download_uri:
-                        self.verification.append(v)
-
-            if save_metadata_path:
-                self._save_file(json.dumps(file, sort_keys=True, indent=4), Downloader.DownloadSlip(download_uri, file, save_metadata_path, 'title'), False)
-
-        content_downloader.finished_queuing = True
-
-        content_downloader.wait_for_complete()
+        self.content_downloader.wait_for_complete()
         d2 = datetime.now()
         delt = d2 - d1
-        self.project.log("transaction", "Total size of files to be acquired is {}".format(
-            Common.sizeof_fmt(self.file_size_bytes, "B")), "highlight", True)
+        self.project.log("transaction", "Acquired {} files for a total size of {}".format(self.filecount, Common.sizeof_fmt(self.file_size_bytes, "B")), "highlight", True)
         self.verify()
+        Common.print_failures(self.project, [self.content_downloader])
         self.project.log("transaction", "Acquisition completed in {}".format(str(delt)), "highlight", True)
 
     def _get_parent_mapping(self, i, items):
@@ -279,6 +297,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             filename = "{base}{version}{extension}".format(base=base, version=version, extension=extension)
         else:
             filename = "{title}{version}".format(title=title, version=version)
+
         return Common.safe_file_name(filename)
 
     def _get_download_url(self, file):
@@ -324,7 +343,9 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
 
         if "file" in file:
             return file[0]
-        if file['mimeType'] == "application/vnd.google-apps.folder":
+        if file['mimeType'] == "application/vnd.google-apps.folder" or \
+           file['mimeType'] == "application/vnd.google-apps.form" or \
+           file['mimeType'] == "application/vnd.google-apps.fusiontable":
             return None
         else:
             dl = Common.joinurl(self.project.config['API_ENDPOINT'], "files/{fileid}?alt=media".format(fileid=file['id']))
@@ -335,17 +356,137 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
 
     def _build_fs(self, link):
         self.project.log("transaction", "Calculating total drive items...", "info", True)
-        response = Common.webrequest(link, self.oauth_provider.get_auth_header(), self.oauth_provider.http_intercept)
-        json_response = json.loads(response)
-
-        if 'nextLink' in json_response:
-            items = json_response['items']
-            self._add_items_to_files(items)
-            self._build_fs(json_response['nextLink'])
-        else:
-            items = json_response['items']
-            self._add_items_to_files(items)
+        response = self.get_response(link)
+        if response:
+            json_response = json.loads(response)
+            if 'nextLink' in json_response:
+                items = json_response['items']
+                self._add_items_to_files(items)
+                self._build_fs(json_response['nextLink'])
+            else:
+                items = json_response['items']
+                self._add_items_to_files(items)
 
     def _add_items_to_files(self, items):
         for i in items:
-            self.files.append(i)
+            self.process_file(i)
+            if self.project.args.include_revisions:
+                revisions = self.get_revisions(i)
+                for rev in revisions:
+                    self.process_file(rev)
+
+    def process_file(self, file):
+        self.project.log("transaction", "Calculating " + file['title'], "info", True)
+        download_uri = self._get_download_url(file)
+        parentmap = self._get_parent_mapping(file, self.files)
+
+        filetitle = self._get_file_name(file)
+        if filetitle != file['title']:
+            self.project.log("exception", "Normalized '" + file['title'] + "' to '" + filetitle + "'", "warning",
+                             True)
+
+        trash_folder = os.path.join(self.project.acquisition_dir, "trash")
+        trash_metadata_folder = os.path.join(self.project.acquisition_dir, "trash_metadata")
+        save_download_path = self.project.project_folders["data"]
+        save_metadata_path = self.project.project_folders["metadata"]
+
+        if file['labels']['trashed'] == True:
+            save_download_path = os.path.join(trash_folder, parentmap)
+            save_metadata_path = os.path.join(trash_metadata_folder, parentmap)
+            # save_download_path = os.path.normpath(os.path.join(save_download_path, filetitle))
+            # save_metadata_path = os.path.normpath(os.path.join(save_metadata_path, filetitle + '.json'))
+        if file['kind'] == "drive#revision":
+            original_title = Common.safe_file_name(file['SG_ORIGINAL_TITLE'])
+            save_download_path = os.path.join(save_download_path, os.path.splitext(original_title)[0] + "_revisions")
+            save_metadata_path = os.path.join(save_metadata_path, os.path.splitext(original_title)[0] + "_revisions")
+
+        save_download_path = os.path.normpath(os.path.join(save_download_path, filetitle))
+        save_metadata_path = os.path.normpath(os.path.join(save_metadata_path, filetitle + '.json'))
+
+        save_download_path = Common.assert_path(save_download_path, self.project)
+        save_metadata_path = Common.assert_path(save_metadata_path, self.project)
+
+        # # else:
+        # #     save_download_path = os.path.normpath(
+        # #         os.path.join(os.path.join(self.project.project_folders["data"], parentmap), filetitle))
+        # #     save_metadata_path = os.path.normpath(
+        # #         os.path.join(os.path.join(self.project.project_folders["metadata"], parentmap), filetitle + ".json"))
+        #
+        # if file['kind'] == "drive#revision":
+        #     save_download_path = os.path.normpath(os.path.join(save_download_path))
+
+
+        if self.project.args.mode == "full":
+            if save_download_path:
+                v = {"remote_file": os.path.join(parentmap, file['title']),
+                     "local_file": save_download_path}
+
+                download_file = True
+                if 'md5Checksum' in file:
+                    v['remote_hash'] = file['md5Checksum']
+
+                if os.path.isfile(save_download_path):
+                    if 'md5Checksum' in file:
+                        file_hash = Common.hashfile(open(save_download_path, 'rb'), hashlib.md5())
+                        if file_hash == file['md5Checksum']:
+                            download_file = False
+                            self.project.log("exception", "Local and remote hash matches for " + file[
+                                'title'] + " ... Skipping download", "warning", True)
+                        else:
+                            self.project.log("exception", "Local and remote hash differs for " + file[
+                                'title'] + " ... Queuing for download", "critical", True)
+
+
+                    else:
+                        self.project.log("exception", "No hash information for file ' " + file['title'] + "'",
+                                         "warning", True)
+
+                if download_file and download_uri:
+                    self.project.log("transaction", "Queueing " + file['title'] + " for download...", "info", True)
+                    self.content_downloader.put(Downloader.DownloadSlip(download_uri, file, save_download_path, 'title'))
+                    self.filecount += 1
+                    #@TODO FILESIZE IS FUCKED UP
+                    if 'fileSize' in file:
+                        self.file_size_bytes += int(file['fileSize'])
+
+                # If it's a file we can add it to verification file
+                if download_uri:
+                    self.verification.append(v)
+
+        if save_metadata_path:
+            self._save_file(json.dumps(file, sort_keys=True, indent=4),
+                            Downloader.DownloadSlip(download_uri, file, save_metadata_path, 'title'), False)
+
+    def get_revisions(self, item):
+        self.project.log("transaction", "Fetching revisions for {}".format(item['title']), "info", True)
+        link = Common.joinurl(self.project.config['API_ENDPOINT'], "files/{}/revisions".format(item['id']))
+        response = self.get_response(link)
+        revs = []
+        if response:
+            json_response = json.loads(response)
+            for revision in json_response['items']:
+                filename_split = os.path.splitext(item['title'])
+                filename_no_ext = filename_split[0]
+                revision['title'] = "{}_rev_{}{}".format(filename_no_ext, revision['id'], filename_split[1])
+                revision['parents'] = item['parents']
+                revision['labels'] = item['labels']
+                revision['SG_ORIGINAL_TITLE'] = item['title']
+                revs.append(revision)
+        return revs
+
+    def get_response(self, link):
+        try:
+            response = Common.webrequest(link, self.oauth_provider.get_auth_header(),
+                                         self.oauth_provider.http_intercept)
+            return response
+        except urllib.error.HTTPError as err:
+            self.project.log("exception",
+                             "{} failed to download - HTTPError {}".format(link, err.code),
+                             "error", True)
+
+
+
+
+
+
+

@@ -9,6 +9,12 @@ import datetime
 from oi.IO import IO
 import webbrowser
 
+def print_failures(project, downloaders = []):
+    for downloader in downloaders:
+        for failure in downloader.failures:
+            project.log("exception", "Failed to download: {} ({})\nException: {} {}\n{}".format(failure["slip"].item["title"], failure["slip"].url, failure["error"].code, failure["error"].msg, failure["error"].fp.read()), "error", True)
+
+
 def launch_browser(url):
     IO.put("Attempting to launch {} in a browser.".format(url))
     try:
