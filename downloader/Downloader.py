@@ -4,6 +4,7 @@ from threading import Thread
 import threading
 import time
 import urllib
+import queue
 
 from common import Common
 
@@ -29,6 +30,7 @@ class Downloader(Queue):
         self.headers = get_headers
         self.threads = threads
         self.http_callback = http_callback
+        self.finished_queuing = False
         super(Downloader, self).__init__()
 
     def wait_for_complete(self):
@@ -49,24 +51,31 @@ class Downloader(Queue):
             t = Thread(target=self._downloader)
             t.daemon = True
             t.name = "Download thread " + str(i)
+            self.project.log("transaction", "Download thread {} starting".format(i), "warning")
             t.start()
 
+
     def _downloader(self):
-        while (not self.empty()) and (not self.project.shutdown_signal):
+        while (((self.empty() == False) or (self.finished_queuing == False)) and self.project.shutdown_signal == False):
+            self.project.log("transaction", "Download thread {} started".format(threading.current_thread().name), "warning")
             t = threading.current_thread()
             Common.check_for_pause(self.project)
-            slip = self.get()
-            if callable(slip.url):
-                file_url = slip.url()
-            else:
-                file_url = slip.url
-            t.name = 'Downloading: ' + slip.item[slip.filename_key]
-            self.project.log("transaction", "Downloading " + slip.item[slip.filename_key], "info", True)
             try:
-                data = Common.webrequest(file_url, self.headers(), self.http_callback, None, False, True) # Response object gets passed to shutil.copyfileobj
-                self.storage_callback(data, slip)
-            except urllib.error.HTTPError as err:
-                self.project.log("exception", "{} failed to download - HTTPError {}".format(slip.item[slip.filename_key], err.code), "warning")
+                slip = self.get(block=False, timeout=3)
+                if callable(slip.url):
+                    file_url = slip.url()
+                else:
+                    file_url = slip.url
+                t.name = 'Downloading: ' + slip.item[slip.filename_key]
+                self.project.log("transaction", "Downloading " + slip.item[slip.filename_key], "info", True)
+                try:
+                    data = Common.webrequest(file_url, self.headers(), self.http_callback, None, False, True) # Response object gets passed to shutil.copyfileobj
+                    self.storage_callback(data, slip)
+                except urllib.error.HTTPError as err:
+                    self.project.log("exception", "{} failed to download - HTTPError {}".format(slip.item[slip.filename_key], err.code), "warning")
+            except queue.Empty:
+                pass
+
         if self.project.shutdown_signal:
             self.project.log("exception", "{} received shutdown signal. Stopping...".format(threading.current_thread().name), "warning")
         else:

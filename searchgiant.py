@@ -27,7 +27,6 @@ if __name__ == '__main__':
                         required=False, default="full")
     parser.add_argument('--threads', '-t', metavar='threads', type=int,
                         help="Amount of parallel threads used to download files", default=5)
-    parser.add_argument('--prompt', '-p', help="Prompt before actually downloading anything", action="store_true")
 
     args = parser.parse_args()
 

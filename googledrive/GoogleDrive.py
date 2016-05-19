@@ -133,14 +133,16 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
 
     def sync(self):
         d1 = datetime.now()
-        d = Downloader.Downloader
+        content_downloader = Downloader.Downloader
+
         if self.project.args.mode == "full":
             self.project.log("transaction", "Full acquisition initiated", "info", True)
-            d = Downloader.Downloader(self.project, self.oauth_provider.http_intercept, self._save_file, self.oauth_provider.get_auth_header,
+            content_downloader = Downloader.Downloader(self.project, self.oauth_provider.http_intercept, self._save_file, self.oauth_provider.get_auth_header,
                                   self.project.threads)
         else:
             self.project.log("transaction", "Metadata acquisition initiated", "info", True)
 
+        content_downloader.start()
         self.initialize_items()
         cnt = len(self.files)
         self.project.log("transaction", "Total items queued for acquisition: " + str(cnt), "info", True)
@@ -197,7 +199,7 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
 
                     if download_file and download_uri:
                         self.project.log("transaction", "Queueing " + file['title'] + " for download...", "info", True)
-                        d.put(Downloader.DownloadSlip(download_uri, file, save_download_path, 'title'))
+                        content_downloader.put(Downloader.DownloadSlip(download_uri, file, save_download_path, 'title'))
                         if 'fileSize' in file:
                             self.file_size_bytes += int(file['fileSize'])
 
@@ -208,16 +210,13 @@ class GoogleDrive(OnlineStorage.OnlineStorage):
             if save_metadata_path:
                 self._save_file(json.dumps(file, sort_keys=True, indent=4), Downloader.DownloadSlip(download_uri, file, save_metadata_path, 'title'), False)
 
-        self.project.log("transaction", "Total size of files to be acquired is {}".format(
-            Common.sizeof_fmt(self.file_size_bytes, "B")), "highlight", True)
+        content_downloader.finished_queuing = True
 
-        if self.project.args.prompt:
-            IO.get("Press ENTER to begin acquisition...")
-
-        d.start()
-        d.wait_for_complete()
+        content_downloader.wait_for_complete()
         d2 = datetime.now()
         delt = d2 - d1
+        self.project.log("transaction", "Total size of files to be acquired is {}".format(
+            Common.sizeof_fmt(self.file_size_bytes, "B")), "highlight", True)
         self.verify()
         self.project.log("transaction", "Acquisition completed in {}".format(str(delt)), "highlight", True)
 
